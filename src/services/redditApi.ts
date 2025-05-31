@@ -25,13 +25,14 @@ interface RedditComment {
 
 // Sport-specific subreddit configurations
 const SPORT_SUBREDDITS = {
-  nba: ['nba', 'fantasybball'],
-  nfl: ['nfl', 'fantasyfootball'],
-  mlb: ['baseball', 'fantasybaseball'],
+  NBA: ['nba', 'fantasybball'],
+  NFL: ['nfl', 'fantasyfootball'],
+  MLB: ['baseball', 'fantasybaseball'],
+  NHL: ['hockey', 'fantasyhockey'],
   general: ['sports']
 };
 
-import { getPlayerByName } from '@/data/playersDatabase';
+import { ESPNPlayer, getTeamSubreddit } from '@/services/espnPlayerDatabase';
 
 class RedditApiService {
   private accessToken: string | null = null;
@@ -145,40 +146,35 @@ class RedditApiService {
     return comments;
   }
 
-  async searchPlayerMentions(playerName: string): Promise<{posts: RedditPost[], comments: RedditComment[], searchedSubreddits: string[]}> {
+  async searchPlayerMentions(playerName: string, playerData?: ESPNPlayer): Promise<{posts: RedditPost[], comments: RedditComment[], searchedSubreddits: string[]}> {
     try {
       console.log(`Searching Reddit for: ${playerName}`);
       
-      // Get player data to determine sport and team subreddit
-      const playerData = getPlayerByName(playerName);
       let subredditsToSearch: string[] = [];
       
       if (playerData) {
-        // Sport-specific subreddits
-        switch (playerData.sport) {
-          case 'NBA':
-            subredditsToSearch = [...SPORT_SUBREDDITS.nba];
-            break;
-          case 'NFL':
-            subredditsToSearch = [...SPORT_SUBREDDITS.nfl];
-            break;
-          case 'MLB':
-            subredditsToSearch = [...SPORT_SUBREDDITS.mlb];
-            break;
-        }
+        // Sport-specific subreddits based on actual player data
+        const sportSubreddits = SPORT_SUBREDDITS[playerData.sport] || [];
+        subredditsToSearch = [...sportSubreddits];
         
         // Add team-specific subreddit if available
-        if (playerData.teamSubreddit) {
-          subredditsToSearch.push(playerData.teamSubreddit);
+        const teamSubreddit = getTeamSubreddit(playerData.team, playerData.sport);
+        if (teamSubreddit) {
+          subredditsToSearch.push(teamSubreddit);
         }
+        
+        console.log(`Searching ${playerData.sport} player in:`, subredditsToSearch);
       } else {
         // Search all sports if player not in database
         subredditsToSearch = [
-          ...SPORT_SUBREDDITS.nba,
-          ...SPORT_SUBREDDITS.nfl,
-          ...SPORT_SUBREDDITS.mlb,
+          ...SPORT_SUBREDDITS.NBA,
+          ...SPORT_SUBREDDITS.NFL,
+          ...SPORT_SUBREDDITS.MLB,
+          ...SPORT_SUBREDDITS.NHL,
           ...SPORT_SUBREDDITS.general
         ];
+        
+        console.log('Player not in database, searching all sports subreddits');
       }
       
       const allPosts: RedditPost[] = [];

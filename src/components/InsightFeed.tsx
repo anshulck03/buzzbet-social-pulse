@@ -4,9 +4,13 @@ import { Clock, MessageCircle, TrendingUp, AlertTriangle, Loader2, ExternalLink 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { redditApi, RedditPost, RedditComment } from '@/services/redditApi';
-import { getTopPosts, getTopComments } from '@/utils/sentimentAnalysis';
+import { ESPNPlayer } from '@/services/espnPlayerDatabase';
 
-const InsightFeed = ({ player }) => {
+interface InsightFeedProps {
+  player: { name: string; playerData?: ESPNPlayer } | null;
+}
+
+const InsightFeed = ({ player }: InsightFeedProps) => {
   const [posts, setPosts] = useState<RedditPost[]>([]);
   const [comments, setComments] = useState<RedditComment[]>([]);
   const [searchedSubreddits, setSearchedSubreddits] = useState<string[]>([]);
@@ -21,7 +25,8 @@ const InsightFeed = ({ player }) => {
       setError(null);
       
       try {
-        const { posts: redditPosts, comments: redditComments, searchedSubreddits: subreddits } = await redditApi.searchPlayerMentions(player.name);
+        const { posts: redditPosts, comments: redditComments, searchedSubreddits: subreddits } = 
+          await redditApi.searchPlayerMentions(player.name, player.playerData);
         setPosts(redditPosts);
         setComments(redditComments);
         setSearchedSubreddits(subreddits);
@@ -37,7 +42,7 @@ const InsightFeed = ({ player }) => {
     };
 
     fetchData();
-  }, [player?.name]);
+  }, [player?.name, player?.playerData]);
 
   if (loading) {
     return (
@@ -51,10 +56,6 @@ const InsightFeed = ({ player }) => {
       </Card>
     );
   }
-
-  const positiveItems = getTopPosts(posts, 'positive', 3);
-  const negativeItems = getTopPosts(posts, 'negative', 3);
-  const allItems = [...positiveItems, ...negativeItems].sort((a, b) => b.score - a.score);
 
   return (
     <div className="space-y-6">
@@ -71,6 +72,11 @@ const InsightFeed = ({ player }) => {
               Active
             </Badge>
           </div>
+          {player?.playerData && (
+            <div className="text-xs text-slate-400">
+              <p>Sport: {player.playerData.sport} • Team: {player.playerData.team}</p>
+            </div>
+          )}
           {searchedSubreddits.length > 0 && (
             <div className="text-xs text-slate-500">
               <p>Searched: {searchedSubreddits.map(sub => `r/${sub}`).join(', ')}</p>
@@ -112,7 +118,7 @@ const InsightFeed = ({ player }) => {
             </div>
           )}
           
-          {!error && allItems.length === 0 && (
+          {!error && posts.length === 0 && (
             <div className="p-6 text-center">
               <MessageCircle className="w-12 h-12 text-slate-600 mx-auto mb-3" />
               <p className="text-slate-400">No Reddit discussions found for {player?.name}</p>
@@ -125,7 +131,7 @@ const InsightFeed = ({ player }) => {
             </div>
           )}
 
-          {!error && allItems.length > 0 && allItems.map((post, index) => (
+          {!error && posts.length > 0 && posts.map((post, index) => (
             <div 
               key={post.id}
               className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors"
@@ -171,7 +177,7 @@ const InsightFeed = ({ player }) => {
           {!error && posts.length > 0 && (
             <div className="text-center pt-2">
               <p className="text-slate-500 text-xs">
-                Showing {allItems.length} of {posts.length} Reddit posts across {searchedSubreddits.length} subreddits
+                Showing {posts.length} Reddit posts across {searchedSubreddits.length} subreddits
               </p>
             </div>
           )}

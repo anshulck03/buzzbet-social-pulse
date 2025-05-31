@@ -9,12 +9,13 @@ import SentimentDashboard from '@/components/SentimentDashboard';
 import InsightFeed from '@/components/InsightFeed';
 import TrendingSection from '@/components/TrendingSection';
 import { Player } from '@/data/playersDatabase';
+import { ESPNPlayer } from '@/services/espnPlayerDatabase';
 
 const Index = () => {
-  const [selectedPlayer, setSelectedPlayer] = useState<{ name: string; playerData?: Player } | null>(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<{ name: string; playerData?: ESPNPlayer } | null>(null);
   const [searchResults, setSearchResults] = useState(false);
 
-  const handlePlayerSelect = (player: { name: string; playerData?: Player }) => {
+  const handlePlayerSelect = (player: { name: string; playerData?: ESPNPlayer }) => {
     setSelectedPlayer(player);
     setSearchResults(true);
   };
