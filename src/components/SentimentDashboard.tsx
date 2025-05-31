@@ -1,6 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, AlertTriangle, Shield, Clock, Loader2, Hash, Brain, Target, Zap, Star, Trophy, Activity } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Shield, Clock, Loader2, Hash, Brain, Target, Zap, Star, Trophy, Activity, Heart, Timer, Gamepad2, BarChart3, News, CheckCircle, AlertCircle, XCircle, HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -58,6 +58,64 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
 
     fetchAnalysis();
   }, [player?.name]);
+
+  const getInjuryStatusIcon = (status: string) => {
+    switch (status) {
+      case 'Healthy': return <CheckCircle className="w-4 h-4 text-green-400" />;
+      case 'Questionable': return <HelpCircle className="w-4 h-4 text-yellow-400" />;
+      case 'Doubtful': return <AlertCircle className="w-4 h-4 text-orange-400" />;
+      case 'Out': return <XCircle className="w-4 h-4 text-red-400" />;
+      default: return <CheckCircle className="w-4 h-4 text-gray-400" />;
+    }
+  };
+
+  const getInjuryStatusColor = (status: string) => {
+    switch (status) {
+      case 'Healthy': return 'text-green-400 bg-green-900/20 border-green-700';
+      case 'Questionable': return 'text-yellow-400 bg-yellow-900/20 border-yellow-700';
+      case 'Doubtful': return 'text-orange-400 bg-orange-900/20 border-orange-700';
+      case 'Out': return 'text-red-400 bg-red-900/20 border-red-700';
+      default: return 'text-gray-400 bg-gray-900/20 border-gray-700';
+    }
+  };
+
+  const getMatchupDifficultyColor = (difficulty: string) => {
+    switch (difficulty) {
+      case 'Easy': return 'text-green-400 bg-green-900/20 border-green-700';
+      case 'Moderate': return 'text-yellow-400 bg-yellow-900/20 border-yellow-700';
+      case 'Tough': return 'text-red-400 bg-red-900/20 border-red-700';
+      default: return 'text-gray-400 bg-gray-900/20 border-gray-700';
+    }
+  };
+
+  const getStartSitColor = (recommendation: string) => {
+    switch (recommendation) {
+      case 'Must Start': return 'text-green-400 bg-green-900/20 border-green-700';
+      case 'Start': return 'text-lime-400 bg-lime-900/20 border-lime-700';
+      case 'Flex': return 'text-yellow-400 bg-yellow-900/20 border-yellow-700';
+      case 'Sit': return 'text-orange-400 bg-orange-900/20 border-orange-700';
+      case 'Avoid': return 'text-red-400 bg-red-900/20 border-red-700';
+      default: return 'text-gray-400 bg-gray-900/20 border-gray-700';
+    }
+  };
+
+  const getTradeValueIcon = (trend: string) => {
+    switch (trend) {
+      case 'Rising': return '📈';
+      case 'Stable': return '📊';
+      case 'Falling': return '📉';
+      default: return '📊';
+    }
+  };
+
+  const getNewsSourceColor = (quality: string) => {
+    switch (quality) {
+      case 'Verified': return 'text-green-400 border-green-400';
+      case 'Team Source': return 'text-blue-400 border-blue-400';
+      case 'Speculation': return 'text-orange-400 border-orange-400';
+      default: return 'text-gray-400 border-gray-400';
+    }
+  };
 
   if (loading) {
     return (
@@ -210,6 +268,91 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
             <p className="text-slate-300 text-sm leading-relaxed">{aiAnalysis.playerSummary}</p>
           </div>
 
+          {/* NEW: Recent Performance Tracker */}
+          <div className="mb-6 p-4 bg-slate-900/50 rounded-lg">
+            <h4 className="text-white font-medium mb-3 flex items-center">
+              <BarChart3 className="w-4 h-4 mr-2 text-blue-400" />
+              Recent Performance Tracker
+            </h4>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* Last 3 Games */}
+              <div className="p-3 bg-slate-800/50 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <Timer className="w-4 h-4 mr-2 text-green-400" />
+                  <span className="text-sm font-medium text-slate-300">Last 3 Games</span>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">{aiAnalysis.recentPerformance.lastThreeGames}</p>
+              </div>
+
+              {/* Injury Status */}
+              <div className={`p-3 rounded-lg border ${getInjuryStatusColor(aiAnalysis.recentPerformance.injuryStatus)}`}>
+                <div className="flex items-center mb-2">
+                  {getInjuryStatusIcon(aiAnalysis.recentPerformance.injuryStatus)}
+                  <span className="text-sm font-medium ml-2">{aiAnalysis.recentPerformance.injuryStatus}</span>
+                </div>
+                <p className="text-xs leading-relaxed">{aiAnalysis.recentPerformance.injuryDescription}</p>
+              </div>
+
+              {/* Matchup Difficulty */}
+              <div className={`p-3 rounded-lg border ${getMatchupDifficultyColor(aiAnalysis.recentPerformance.matchupDifficulty)}`}>
+                <div className="flex items-center mb-2">
+                  <Target className="w-4 h-4 mr-2" />
+                  <span className="text-sm font-medium">{aiAnalysis.recentPerformance.matchupDifficulty} Matchup</span>
+                </div>
+                <p className="text-xs leading-relaxed">{aiAnalysis.recentPerformance.matchupReasoning}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* NEW: Fantasy Impact Score */}
+          <div className="mb-6 p-4 bg-slate-900/50 rounded-lg">
+            <h4 className="text-white font-medium mb-3 flex items-center">
+              <Gamepad2 className="w-4 h-4 mr-2 text-purple-400" />
+              Fantasy Intelligence
+            </h4>
+            
+            {/* Start/Sit Recommendation */}
+            <div className={`mb-4 p-3 rounded-lg border ${getStartSitColor(aiAnalysis.fantasyInsights.startSitRecommendation)}`}>
+              <div className="flex items-center justify-between mb-2">
+                <span className="font-medium">{aiAnalysis.fantasyInsights.startSitRecommendation}</span>
+                <span className="text-sm">{aiAnalysis.fantasyInsights.startSitConfidence}% Confidence</span>
+              </div>
+              <Progress value={aiAnalysis.fantasyInsights.startSitConfidence} className="h-1 mb-2" />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Trade Value Trend */}
+              <div className="p-3 bg-slate-800/50 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <span className="mr-2">{getTradeValueIcon(aiAnalysis.fantasyInsights.tradeValueTrend)}</span>
+                  <span className="text-sm font-medium text-slate-300">Trade Value: {aiAnalysis.fantasyInsights.tradeValueTrend}</span>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">{aiAnalysis.fantasyInsights.tradeValueExplanation}</p>
+              </div>
+
+              {/* Rest of Season Outlook */}
+              <div className="p-3 bg-slate-800/50 rounded-lg">
+                <div className="flex items-center mb-2">
+                  <Activity className="w-4 h-4 mr-2 text-orange-400" />
+                  <span className="text-sm font-medium text-slate-300">ROS Outlook</span>
+                </div>
+                <p className="text-xs text-slate-400 leading-relaxed">{aiAnalysis.fantasyInsights.restOfSeasonOutlook}</p>
+              </div>
+            </div>
+
+            {/* League Format Relevance */}
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-3 bg-slate-800/50 rounded-lg">
+                <h5 className="text-xs font-medium text-slate-300 mb-1">PPR Format</h5>
+                <p className="text-xs text-slate-400">{aiAnalysis.fantasyInsights.pprRelevance}</p>
+              </div>
+              <div className="p-3 bg-slate-800/50 rounded-lg">
+                <h5 className="text-xs font-medium text-slate-300 mb-1">Dynasty League</h5>
+                <p className="text-xs text-slate-400">{aiAnalysis.fantasyInsights.dynastyRelevance}</p>
+              </div>
+            </div>
+          </div>
+
           {/* AI Recommendation */}
           <div className="p-4 bg-slate-900/50 rounded-lg">
             <h4 className="text-white font-medium mb-2 flex items-center">
@@ -220,6 +363,33 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
           </div>
         </CardContent>
       </Card>
+
+      {/* NEW: Breaking News Alerts */}
+      {aiAnalysis.breakingNews.hasRecentNews && (
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <News className="w-5 h-5 mr-2 text-red-400" />
+              Breaking News & Updates
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {aiAnalysis.breakingNews.newsItems.map((news, index) => (
+                <div key={index} className="p-3 bg-slate-900/50 rounded-lg border-l-4 border-red-400">
+                  <div className="flex items-center justify-between mb-2">
+                    <Badge variant="outline" className={`${getNewsSourceColor(news.sourceQuality)} text-xs`}>
+                      {news.sourceQuality}
+                    </Badge>
+                    <span className="text-xs text-slate-500">{news.timestamp}</span>
+                  </div>
+                  <p className="text-slate-300 text-sm leading-relaxed">{news.content}</p>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Key Trends Analysis */}
       {aiAnalysis.keyTrends.length > 0 && (
@@ -295,21 +465,6 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
           </Card>
         )}
       </div>
-
-      {/* Fantasy Impact */}
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center">
-            <Trophy className="w-5 h-5 mr-2 text-purple-400" />
-            Fantasy Impact Analysis
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="p-4 bg-slate-900/50 rounded-lg">
-            <p className="text-slate-300 text-sm leading-relaxed">{aiAnalysis.fantasyImpact}</p>
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Data Sources */}
       {aiAnalysis.subredditsAnalyzed.length > 0 && (

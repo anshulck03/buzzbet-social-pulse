@@ -26,6 +26,33 @@ export interface DeepSeekSummaryAnalysis {
   sentimentConfidence: number;
   sport: 'NBA' | 'NFL' | 'NHL' | 'MLB' | 'unknown';
   subredditsAnalyzed: string[];
+  
+  // New sections
+  recentPerformance: {
+    lastThreeGames: string;
+    injuryStatus: 'Healthy' | 'Questionable' | 'Doubtful' | 'Out';
+    injuryDescription: string;
+    matchupDifficulty: 'Easy' | 'Moderate' | 'Tough';
+    matchupReasoning: string;
+  };
+  fantasyInsights: {
+    startSitRecommendation: 'Must Start' | 'Start' | 'Flex' | 'Sit' | 'Avoid';
+    startSitConfidence: number;
+    tradeValueTrend: 'Rising' | 'Stable' | 'Falling';
+    tradeValueExplanation: string;
+    restOfSeasonOutlook: string;
+    pprRelevance: string;
+    dynastyRelevance: string;
+  };
+  breakingNews: {
+    hasRecentNews: boolean;
+    newsItems: Array<{
+      content: string;
+      timestamp: string;
+      sourceQuality: 'Verified' | 'Team Source' | 'Speculation';
+      category: 'Injury' | 'Trade' | 'Practice' | 'Performance' | 'Personal';
+    }>;
+  };
 }
 
 export class DeepSeekAnalyzer {
@@ -189,7 +216,27 @@ Return only valid JSON, no additional text.`;
         sentiment: 'neutral',
         sentimentConfidence: 0,
         sport: 'unknown',
-        subredditsAnalyzed: []
+        subredditsAnalyzed: [],
+        recentPerformance: {
+          lastThreeGames: 'No recent performance data available',
+          injuryStatus: 'Healthy',
+          injuryDescription: 'No injury concerns identified',
+          matchupDifficulty: 'Moderate',
+          matchupReasoning: 'Standard matchup difficulty expected'
+        },
+        fantasyInsights: {
+          startSitRecommendation: 'Flex',
+          startSitConfidence: 50,
+          tradeValueTrend: 'Stable',
+          tradeValueExplanation: 'Limited data for trade value assessment',
+          restOfSeasonOutlook: 'Monitor for more discussion data',
+          pprRelevance: 'Standard PPR value expected',
+          dynastyRelevance: 'Hold and monitor development'
+        },
+        breakingNews: {
+          hasRecentNews: false,
+          newsItems: []
+        }
       };
     }
 
@@ -209,7 +256,7 @@ Return only valid JSON, no additional text.`;
       `Post ${index + 1} (r/${post.subreddit}): "${post.title}" - "${post.content.substring(0, 200)}..."`
     ).join('\n\n');
 
-    const prompt = `Analyze these ${batchedPosts.length} Reddit posts about ${playerName} and provide comprehensive sports intelligence analysis:
+    const prompt = `Analyze these ${batchedPosts.length} Reddit posts about ${playerName} and provide comprehensive sports intelligence analysis with enhanced fantasy and performance insights:
 
 Sport: ${primarySport}
 Sport Context: ${sportContext}
@@ -217,21 +264,41 @@ Subreddits: ${subreddits.join(', ')}
 
 ${allPosts}
 
-Provide analysis as JSON:
+Provide comprehensive analysis as JSON:
 {
   "playerSummary": (2-3 sentence overview of player's current situation),
   "performanceTrajectory": (one of: "Rising Star", "Proven Performer", "Declining", "Sleeper Pick", "Avoid"),
-  "keyTrends": (array of 3-5 key patterns or trends emerging from discussions),
+  "keyTrends": (array of 3-5 key patterns or trends),
   "riskFactors": (array of specific concerns or red flags),
-  "opportunities": (array of positive indicators or opportunities),
-  "fantasyImpact": (fantasy sports relevance and impact assessment),
+  "opportunities": (array of positive indicators),
+  "fantasyImpact": (fantasy sports relevance assessment),
   "recommendation": (clear guidance with reasoning),
-  "performanceScore": (number from -10 to +10 representing overall trajectory),
-  "trajectoryConfidence": (number 0-100 representing confidence in trajectory),
+  "performanceScore": (number from -10 to +10),
+  "trajectoryConfidence": (number 0-100),
   "sentiment": (one of: "positive", "negative", "neutral"),
-  "sentimentConfidence": (number 0-100 representing sentiment confidence),
+  "sentimentConfidence": (number 0-100),
   "sport": "${primarySport}",
-  "subredditsAnalyzed": ${JSON.stringify(subreddits)}
+  "subredditsAnalyzed": ${JSON.stringify(subreddits)},
+  "recentPerformance": {
+    "lastThreeGames": (summary of recent game performance vs averages mentioned in discussions),
+    "injuryStatus": (one of: "Healthy", "Questionable", "Doubtful", "Out"),
+    "injuryDescription": (brief injury status or "No injury concerns identified"),
+    "matchupDifficulty": (one of: "Easy", "Moderate", "Tough"),
+    "matchupReasoning": (brief explanation of upcoming matchup difficulty)
+  },
+  "fantasyInsights": {
+    "startSitRecommendation": (one of: "Must Start", "Start", "Flex", "Sit", "Avoid"),
+    "startSitConfidence": (number 0-100),
+    "tradeValueTrend": (one of: "Rising", "Stable", "Falling"),
+    "tradeValueExplanation": (brief explanation of trade value trend),
+    "restOfSeasonOutlook": (1-2 sentences on expected performance),
+    "pprRelevance": (PPR format specific advice),
+    "dynastyRelevance": (dynasty league specific outlook)
+  },
+  "breakingNews": {
+    "hasRecentNews": (boolean if any news in last 24-48 hours),
+    "newsItems": (array of recent news items from discussions, max 3)
+  }
 }
 
 Return only valid JSON, no additional text.`;
@@ -257,7 +324,27 @@ Return only valid JSON, no additional text.`;
         sentiment: analysis.sentiment || 'neutral',
         sentimentConfidence: Math.max(0, Math.min(100, analysis.sentimentConfidence || 50)),
         sport: primarySport,
-        subredditsAnalyzed: subreddits
+        subredditsAnalyzed: subreddits,
+        recentPerformance: {
+          lastThreeGames: analysis.recentPerformance?.lastThreeGames || 'Recent performance data being analyzed',
+          injuryStatus: analysis.recentPerformance?.injuryStatus || 'Healthy',
+          injuryDescription: analysis.recentPerformance?.injuryDescription || 'No injury concerns identified',
+          matchupDifficulty: analysis.recentPerformance?.matchupDifficulty || 'Moderate',
+          matchupReasoning: analysis.recentPerformance?.matchupReasoning || 'Standard matchup difficulty expected'
+        },
+        fantasyInsights: {
+          startSitRecommendation: analysis.fantasyInsights?.startSitRecommendation || 'Flex',
+          startSitConfidence: Math.max(0, Math.min(100, analysis.fantasyInsights?.startSitConfidence || 60)),
+          tradeValueTrend: analysis.fantasyInsights?.tradeValueTrend || 'Stable',
+          tradeValueExplanation: analysis.fantasyInsights?.tradeValueExplanation || 'Trade value assessment in progress',
+          restOfSeasonOutlook: analysis.fantasyInsights?.restOfSeasonOutlook || 'Season outlook being evaluated',
+          pprRelevance: analysis.fantasyInsights?.pprRelevance || 'PPR impact being analyzed',
+          dynastyRelevance: analysis.fantasyInsights?.dynastyRelevance || 'Dynasty value being assessed'
+        },
+        breakingNews: {
+          hasRecentNews: analysis.breakingNews?.hasRecentNews || false,
+          newsItems: Array.isArray(analysis.breakingNews?.newsItems) ? analysis.breakingNews.newsItems.slice(0, 3) : []
+        }
       };
 
       this.cache.set(cacheKey, result);
@@ -279,7 +366,27 @@ Return only valid JSON, no additional text.`;
         sentiment: 'neutral',
         sentimentConfidence: 40,
         sport: primarySport,
-        subredditsAnalyzed: subreddits
+        subredditsAnalyzed: subreddits,
+        recentPerformance: {
+          lastThreeGames: 'Performance tracking in progress',
+          injuryStatus: 'Healthy',
+          injuryDescription: 'Monitoring for injury updates',
+          matchupDifficulty: 'Moderate',
+          matchupReasoning: 'Matchup analysis pending'
+        },
+        fantasyInsights: {
+          startSitRecommendation: 'Flex',
+          startSitConfidence: 50,
+          tradeValueTrend: 'Stable',
+          tradeValueExplanation: 'Analyzing trade discussions',
+          restOfSeasonOutlook: 'Evaluating long-term potential',
+          pprRelevance: 'PPR analysis in progress',
+          dynastyRelevance: 'Dynasty evaluation ongoing'
+        },
+        breakingNews: {
+          hasRecentNews: false,
+          newsItems: []
+        }
       };
     }
   }
