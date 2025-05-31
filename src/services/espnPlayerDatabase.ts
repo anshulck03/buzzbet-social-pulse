@@ -27,45 +27,66 @@ class FreePlayerDatabase {
   }
 
   private async fetchAllPlayers(): Promise<ESPNPlayer[]> {
-    const sportAPIs = [
-      { sport: 'NBA' as const, url: 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/athletes' },
-      { sport: 'NFL' as const, url: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/athletes' },
-      { sport: 'MLB' as const, url: 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/athletes' },
-      { sport: 'NHL' as const, url: 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/athletes' }
+    const sportConfigs = [
+      { sport: 'NBA' as const, teamCount: 30, baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams' },
+      { sport: 'NFL' as const, teamCount: 32, baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams' },
+      { sport: 'MLB' as const, teamCount: 30, baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams' },
+      { sport: 'NHL' as const, teamCount: 32, baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams' }
     ];
 
-    console.log('Loading players from ESPN...');
+    console.log('Loading players from ESPN team rosters...');
 
-    for (const { sport, url } of sportAPIs) {
-      try {
-        const response = await fetch(url);
-        const data = await response.json();
-        
-        if (data.athletes) {
-          data.athletes.forEach((athlete: any) => {
-            this.players.push({
-              id: `${sport}_${athlete.id}`,
-              name: athlete.displayName,
-              firstName: athlete.firstName || '',
-              lastName: athlete.lastName || '',
-              team: athlete.team?.displayName || 'Free Agent',
-              teamAbbr: athlete.team?.abbreviation || '',
-              position: athlete.position?.abbreviation || 'N/A',
-              sport: sport,
-              headshot: athlete.headshot?.href || '',
-              searchTerms: this.createSearchTerms(athlete.displayName, athlete.firstName, athlete.lastName)
-            });
-          });
+    for (const { sport, teamCount, baseUrl } of sportConfigs) {
+      console.log(`Loading ${sport} players...`);
+      let sportPlayerCount = 0;
+
+      for (let teamId = 1; teamId <= teamCount; teamId++) {
+        try {
+          const url = `${baseUrl}/${teamId}/roster`;
+          const response = await fetch(url);
           
-          console.log(`Loaded ${data.athletes.length} ${sport} players`);
+          if (!response.ok) {
+            console.warn(`Failed to load ${sport} team ${teamId}: ${response.status}`);
+            continue;
+          }
+
+          const data = await response.json();
+          
+          if (data.athletes && data.athletes.length > 0) {
+            data.athletes.forEach((athleteGroup: any) => {
+              if (athleteGroup.items) {
+                athleteGroup.items.forEach((athlete: any) => {
+                  this.players.push({
+                    id: `${sport}_${athlete.id}`,
+                    name: athlete.fullName || athlete.displayName || '',
+                    firstName: athlete.firstName || '',
+                    lastName: athlete.lastName || '',
+                    team: data.team?.displayName || 'Unknown Team',
+                    teamAbbr: data.team?.abbreviation || '',
+                    position: athlete.position?.name || athlete.position?.abbreviation || 'N/A',
+                    sport: sport,
+                    headshot: athlete.headshot?.href || '',
+                    searchTerms: this.createSearchTerms(
+                      athlete.fullName || athlete.displayName || '', 
+                      athlete.firstName || '', 
+                      athlete.lastName || ''
+                    )
+                  });
+                  sportPlayerCount++;
+                });
+              }
+            });
+          }
+        } catch (error) {
+          console.warn(`Error loading ${sport} team ${teamId}:`, error);
+          // Continue with next team
         }
-      } catch (error) {
-        console.error(`Failed to load ${sport} players:`, error);
-        // Continue with other sports even if one fails
+        
+        // Small delay to be respectful to ESPN's servers
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
       
-      // Small delay to be respectful
-      await new Promise(resolve => setTimeout(resolve, 100));
+      console.log(`Loaded ${sportPlayerCount} ${sport} players from ${teamCount} teams`);
     }
 
     this.isLoaded = true;
@@ -74,31 +95,47 @@ class FreePlayerDatabase {
   }
 
   private createSearchTerms(displayName: string, firstName: string, lastName: string): string[] {
-    const terms = [displayName.toLowerCase()];
+    const terms = [];
+    
+    if (displayName) terms.push(displayName.toLowerCase());
     
     if (firstName && lastName) {
       terms.push(`${firstName} ${lastName}`.toLowerCase());
       terms.push(lastName.toLowerCase()); // Just last name
-    }
-    
-    // Add common nickname patterns
-    if (firstName) {
-      // Anthony -> Ant, Anthony -> Tony
+      
+      // Add common nickname patterns
       if (firstName === 'Anthony') {
         terms.push(`ant ${lastName}`.toLowerCase());
         terms.push(`tony ${lastName}`.toLowerCase());
       }
-      // Christopher -> Chris
       if (firstName === 'Christopher') {
         terms.push(`chris ${lastName}`.toLowerCase());
       }
-      // Alexander -> Alex
       if (firstName === 'Alexander') {
         terms.push(`alex ${lastName}`.toLowerCase());
       }
+      if (firstName === 'Michael') {
+        terms.push(`mike ${lastName}`.toLowerCase());
+      }
+      if (firstName === 'William') {
+        terms.push(`bill ${lastName}`.toLowerCase());
+        terms.push(`will ${lastName}`.toLowerCase());
+      }
+      if (firstName === 'Robert') {
+        terms.push(`rob ${lastName}`.toLowerCase());
+        terms.push(`bob ${lastName}`.toLowerCase());
+      }
+      if (firstName === 'Richard') {
+        terms.push(`rick ${lastName}`.toLowerCase());
+        terms.push(`dick ${lastName}`.toLowerCase());
+      }
+      if (firstName === 'James') {
+        terms.push(`jim ${lastName}`.toLowerCase());
+        terms.push(`jimmy ${lastName}`.toLowerCase());
+      }
     }
     
-    return terms;
+    return [...new Set(terms)]; // Remove duplicates
   }
 
   searchPlayers(query: string, limit = 8): ESPNPlayer[] {
@@ -108,7 +145,6 @@ class FreePlayerDatabase {
     const matches: ESPNPlayer[] = [];
     
     for (const player of this.players) {
-      // Check if any search term includes the query
       const score = this.calculateMatchScore(player, searchTerm);
       if (score > 0) {
         matches.push({ ...player, matchScore: score });
