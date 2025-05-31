@@ -1,6 +1,5 @@
-
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, AlertTriangle, Shield, Clock, Loader2, Hash, Brain, Target, Zap, Star, Trophy, Activity, Heart, Timer, Gamepad2, BarChart3, News, CheckCircle, AlertCircle, XCircle, HelpCircle } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Shield, Clock, Loader2, Hash, Brain, Target, Zap, Star, Trophy, Activity, Heart, Timer, Gamepad2, BarChart3, Newspaper, CheckCircle, AlertCircle, XCircle, HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -369,7 +368,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
         <Card className="bg-slate-800/50 border-slate-700">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
-              <News className="w-5 h-5 mr-2 text-red-400" />
+              <Newspaper className="w-5 h-5 mr-2 text-red-400" />
               Breaking News & Updates
             </CardTitle>
           </CardHeader>
