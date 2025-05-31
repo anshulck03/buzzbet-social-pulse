@@ -5,14 +5,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { redditApi } from '@/services/redditApi';
-import { geminiAnalyzer, GeminiSummaryAnalysis } from '@/services/geminiAnalyzer';
+import { groqAnalyzer, GroqSummaryAnalysis } from '@/services/groqAnalyzer';
 
 interface SentimentDashboardProps {
   player: { name: string; playerData?: any } | null;
 }
 
 const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
-  const [geminiAnalysis, setGeminiAnalysis] = useState<GeminiSummaryAnalysis | null>(null);
+  const [groqAnalysis, setGroqAnalysis] = useState<GroqSummaryAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -27,7 +27,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
         console.log(`Fetching Reddit data for AI analysis: ${player.name}`);
         const { posts, comments } = await redditApi.searchPlayerMentions(player.name);
         
-        // Prepare posts for Gemini analysis
+        // Prepare posts for Groq analysis
         const postsForAnalysis = posts.map(post => ({
           title: post.title,
           content: post.selftext || ''
@@ -41,14 +41,14 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
         
         const allContent = [...postsForAnalysis, ...commentsForAnalysis];
         
-        console.log(`Analyzing ${allContent.length} pieces of content with Gemini AI`);
-        const analysis = await geminiAnalyzer.summarizePosts(allContent, player.name);
-        setGeminiAnalysis(analysis);
+        console.log(`Analyzing ${allContent.length} pieces of content with Groq AI`);
+        const analysis = await groqAnalyzer.summarizePosts(allContent, player.name);
+        setGroqAnalysis(analysis);
         
       } catch (err) {
         console.error('Error fetching AI analysis:', err);
-        setError('Failed to analyze Reddit data with AI');
-        setGeminiAnalysis(null);
+        setError('AI analysis temporarily unavailable - retrying...');
+        setGroqAnalysis(null);
       } finally {
         setLoading(false);
       }
@@ -75,16 +75,16 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
       <Card className="bg-slate-800/50 border-slate-700">
         <CardContent className="p-6">
           <div className="text-center">
-            <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-3" />
-            <p className="text-red-300 mb-2">{error}</p>
-            <p className="text-slate-400 text-sm">Try searching for a different player</p>
+            <AlertTriangle className="w-12 h-12 text-yellow-400 mx-auto mb-3" />
+            <p className="text-yellow-300 mb-2">{error}</p>
+            <p className="text-slate-400 text-sm">Analysis will resume automatically</p>
           </div>
         </CardContent>
       </Card>
     );
   }
 
-  if (!geminiAnalysis) {
+  if (!groqAnalysis) {
     return (
       <Card className="bg-slate-800/50 border-slate-700">
         <CardContent className="p-6">
@@ -114,6 +114,14 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
     return 'Strong Sell';
   };
 
+  const getSentimentColor = (sentiment: string) => {
+    switch (sentiment) {
+      case 'positive': return 'text-green-400';
+      case 'negative': return 'text-red-400';
+      default: return 'text-yellow-400';
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* AI-Powered Main Analysis */}
@@ -125,31 +133,31 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
               <span className="text-white">AI Reddit Intelligence</span>
             </div>
             <div className="flex items-center space-x-2">
-              {geminiAnalysis.aggregatedScore > 0 ? (
+              {groqAnalysis.aggregatedScore > 0 ? (
                 <TrendingUp className="w-5 h-5 text-green-400" />
               ) : (
                 <TrendingDown className="w-5 h-5 text-red-400" />
               )}
               <Badge variant="outline" className="text-blue-400 border-blue-400">
                 <Zap className="w-3 h-3 mr-1" />
-                AI Powered
+                Groq Powered
               </Badge>
             </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-6">
-            <div className={`text-6xl font-bold ${getScoreColor(geminiAnalysis.aggregatedScore)}`}>
-              {geminiAnalysis.aggregatedScore >= 0 ? '+' : ''}{geminiAnalysis.aggregatedScore}
+            <div className={`text-6xl font-bold ${getScoreColor(groqAnalysis.aggregatedScore)}`}>
+              {groqAnalysis.aggregatedScore >= 0 ? '+' : ''}{groqAnalysis.aggregatedScore}
             </div>
             <div className="flex-1">
               <div className="mb-2">
-                <span className={`text-lg font-medium ${getScoreColor(geminiAnalysis.aggregatedScore)}`}>
-                  {getScoreLabel(geminiAnalysis.aggregatedScore)}
+                <span className={`text-lg font-medium ${getScoreColor(groqAnalysis.aggregatedScore)}`}>
+                  {getScoreLabel(groqAnalysis.aggregatedScore)}
                 </span>
               </div>
               <Progress 
-                value={((geminiAnalysis.aggregatedScore + 10) / 20) * 100} 
+                value={((groqAnalysis.aggregatedScore + 10) / 20) * 100} 
                 className="h-3 bg-slate-700"
               />
               <div className="flex justify-between text-xs text-slate-400 mt-2">
@@ -157,15 +165,20 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
                 <span>Hold</span>
                 <span>Strong Buy</span>
               </div>
-              <div className="mt-2 text-sm text-slate-400">
-                AI Confidence: {geminiAnalysis.confidenceLevel}%
+              <div className="mt-2 flex items-center justify-between text-sm">
+                <span className="text-slate-400">
+                  AI Confidence: {groqAnalysis.confidenceLevel}%
+                </span>
+                <span className={`${getSentimentColor(groqAnalysis.sentiment)} font-medium`}>
+                  {groqAnalysis.sentiment.toUpperCase()} ({groqAnalysis.sentimentConfidence}%)
+                </span>
               </div>
             </div>
           </div>
           
           <div className="mt-6 p-4 bg-slate-900/50 rounded-lg">
             <h4 className="text-white font-medium mb-2">Overall Sentiment</h4>
-            <p className="text-slate-300 text-sm">{geminiAnalysis.overallSentiment}</p>
+            <p className="text-slate-300 text-sm">{groqAnalysis.overallSentiment}</p>
           </div>
 
           <div className="mt-4 p-4 bg-slate-900/50 rounded-lg">
@@ -173,13 +186,13 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
               <Target className="w-4 h-4 mr-2 text-green-400" />
               AI Recommendation
             </h4>
-            <p className="text-slate-300 text-sm">{geminiAnalysis.recommendation}</p>
+            <p className="text-slate-300 text-sm">{groqAnalysis.recommendation}</p>
           </div>
         </CardContent>
       </Card>
 
       {/* Key Trends Analysis */}
-      {geminiAnalysis.keyTrends.length > 0 && (
+      {groqAnalysis.keyTrends.length > 0 && (
         <Card className="bg-slate-800/50 border-slate-700">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
@@ -189,7 +202,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {geminiAnalysis.keyTrends.map((trend, index) => (
+              {groqAnalysis.keyTrends.map((trend, index) => (
                 <div 
                   key={index}
                   className="p-3 bg-slate-900/50 rounded-lg border-l-4 border-blue-400"
@@ -205,7 +218,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
       {/* Risk Factors & Opportunities */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Risk Factors */}
-        {geminiAnalysis.riskFactors.length > 0 && (
+        {groqAnalysis.riskFactors.length > 0 && (
           <Card className="bg-slate-800/50 border-slate-700">
             <CardHeader>
               <CardTitle className="text-white flex items-center">
@@ -215,7 +228,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {geminiAnalysis.riskFactors.map((risk, index) => (
+                {groqAnalysis.riskFactors.map((risk, index) => (
                   <div 
                     key={index}
                     className="p-2 bg-red-900/20 rounded-lg border border-red-700/50"
@@ -229,7 +242,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
         )}
 
         {/* Opportunities */}
-        {geminiAnalysis.opportunities.length > 0 && (
+        {groqAnalysis.opportunities.length > 0 && (
           <Card className="bg-slate-800/50 border-slate-700">
             <CardHeader>
               <CardTitle className="text-white flex items-center">
@@ -239,7 +252,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {geminiAnalysis.opportunities.map((opportunity, index) => (
+                {groqAnalysis.opportunities.map((opportunity, index) => (
                   <div 
                     key={index}
                     className="p-2 bg-green-900/20 rounded-lg border border-green-700/50"
@@ -263,7 +276,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
         </CardHeader>
         <CardContent>
           <div className="p-4 bg-slate-900/50 rounded-lg">
-            <p className="text-slate-300 text-sm">{geminiAnalysis.timeline}</p>
+            <p className="text-slate-300 text-sm">{groqAnalysis.timeline}</p>
           </div>
         </CardContent>
       </Card>
