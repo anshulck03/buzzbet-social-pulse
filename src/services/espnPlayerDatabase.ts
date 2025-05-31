@@ -1,4 +1,3 @@
-
 export interface ESPNPlayer {
   id: string;
   name: string;
@@ -28,65 +27,97 @@ class FreePlayerDatabase {
 
   private async fetchAllPlayers(): Promise<ESPNPlayer[]> {
     const sportConfigs = [
-      { sport: 'NBA' as const, teamCount: 30, baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams' },
-      { sport: 'NFL' as const, teamCount: 32, baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/football/nfl/teams' },
-      { sport: 'MLB' as const, teamCount: 30, baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/baseball/mlb/teams' },
-      { sport: 'NHL' as const, teamCount: 32, baseUrl: 'https://site.api.espn.com/apis/site/v2/sports/hockey/nhl/teams' }
+      { sport: 'NBA' as const, sportPath: 'basketball/nba' },
+      { sport: 'NFL' as const, sportPath: 'football/nfl' },
+      { sport: 'MLB' as const, sportPath: 'baseball/mlb' },
+      { sport: 'NHL' as const, sportPath: 'hockey/nhl' }
     ];
 
     console.log('Loading players from ESPN team rosters...');
 
-    for (const { sport, teamCount, baseUrl } of sportConfigs) {
+    for (const { sport, sportPath } of sportConfigs) {
       console.log(`Loading ${sport} players...`);
       let sportPlayerCount = 0;
 
-      for (let teamId = 1; teamId <= teamCount; teamId++) {
-        try {
-          const url = `${baseUrl}/${teamId}/roster`;
-          const response = await fetch(url);
-          
-          if (!response.ok) {
-            console.warn(`Failed to load ${sport} team ${teamId}: ${response.status}`);
-            continue;
-          }
+      try {
+        // First, get all team IDs for this sport
+        const teamsUrl = `https://site.api.espn.com/apis/site/v2/sports/${sportPath}/teams`;
+        const teamsResponse = await fetch(teamsUrl);
+        
+        if (!teamsResponse.ok) {
+          console.warn(`Failed to load ${sport} teams: ${teamsResponse.status}`);
+          continue;
+        }
 
-          const data = await response.json();
-          
-          if (data.athletes && data.athletes.length > 0) {
-            data.athletes.forEach((athleteGroup: any) => {
-              if (athleteGroup.items) {
-                athleteGroup.items.forEach((athlete: any) => {
-                  this.players.push({
-                    id: `${sport}_${athlete.id}`,
-                    name: athlete.fullName || athlete.displayName || '',
-                    firstName: athlete.firstName || '',
-                    lastName: athlete.lastName || '',
-                    team: data.team?.displayName || 'Unknown Team',
-                    teamAbbr: data.team?.abbreviation || '',
-                    position: athlete.position?.name || athlete.position?.abbreviation || 'N/A',
-                    sport: sport,
-                    headshot: athlete.headshot?.href || '',
-                    searchTerms: this.createSearchTerms(
-                      athlete.fullName || athlete.displayName || '', 
-                      athlete.firstName || '', 
-                      athlete.lastName || ''
-                    )
+        const teamsData = await teamsResponse.json();
+        
+        // Extract team IDs from sports[0].leagues[0].teams[*].team.id
+        const teamIds: number[] = [];
+        if (teamsData.sports?.[0]?.leagues?.[0]?.teams) {
+          teamsData.sports[0].leagues[0].teams.forEach((teamObj: any) => {
+            if (teamObj.team?.id) {
+              teamIds.push(parseInt(teamObj.team.id));
+            }
+          });
+        }
+
+        console.log(`Found ${teamIds.length} ${sport} teams`);
+
+        // Now fetch roster for each team
+        for (const teamId of teamIds) {
+          try {
+            const rosterUrl = `https://site.api.espn.com/apis/site/v2/sports/${sportPath}/teams/${teamId}/roster`;
+            const rosterResponse = await fetch(rosterUrl);
+            
+            if (!rosterResponse.ok) {
+              console.warn(`Failed to load ${sport} team ${teamId} roster: ${rosterResponse.status}`);
+              continue;
+            }
+
+            const rosterData = await rosterResponse.json();
+            
+            // Handle nested structure: athletes[*].items[*]
+            if (rosterData.athletes && Array.isArray(rosterData.athletes)) {
+              rosterData.athletes.forEach((athleteGroup: any) => {
+                if (athleteGroup.items && Array.isArray(athleteGroup.items)) {
+                  athleteGroup.items.forEach((athlete: any) => {
+                    if (athlete.fullName || athlete.displayName) {
+                      this.players.push({
+                        id: `${sport}_${athlete.id}`,
+                        name: athlete.fullName || athlete.displayName || '',
+                        firstName: athlete.firstName || '',
+                        lastName: athlete.lastName || '',
+                        team: rosterData.team?.displayName || 'Unknown Team',
+                        teamAbbr: rosterData.team?.abbreviation || '',
+                        position: athlete.position?.name || athlete.position?.abbreviation || 'N/A',
+                        sport: sport,
+                        headshot: athlete.headshot?.href || '',
+                        searchTerms: this.createSearchTerms(
+                          athlete.fullName || athlete.displayName || '', 
+                          athlete.firstName || '', 
+                          athlete.lastName || ''
+                        )
+                      });
+                      sportPlayerCount++;
+                    }
                   });
-                  sportPlayerCount++;
-                });
-              }
-            });
+                }
+              });
+            }
+          } catch (error) {
+            console.warn(`Error loading ${sport} team ${teamId} roster:`, error);
+            // Continue with next team
           }
-        } catch (error) {
-          console.warn(`Error loading ${sport} team ${teamId}:`, error);
-          // Continue with next team
+          
+          // Small delay to be respectful to ESPN's servers
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
         
-        // Small delay to be respectful to ESPN's servers
-        await new Promise(resolve => setTimeout(resolve, 50));
+        console.log(`Loaded ${sportPlayerCount} ${sport} players from ${teamIds.length} teams`);
+      } catch (error) {
+        console.error(`Error loading ${sport} teams:`, error);
+        // Continue with next sport
       }
-      
-      console.log(`Loaded ${sportPlayerCount} ${sport} players from ${teamCount} teams`);
     }
 
     this.isLoaded = true;
