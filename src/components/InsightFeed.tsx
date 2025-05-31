@@ -1,161 +1,162 @@
 
-import React from 'react';
-import { MessageSquare, ThumbsUp, ThumbsDown, ExternalLink, Clock } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { Clock, MessageCircle, TrendingUp, AlertTriangle, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { redditApi, RedditPost, RedditComment } from '@/services/redditApi';
+import { getTopPosts, getTopComments } from '@/utils/sentimentAnalysis';
 
 const InsightFeed = ({ player }) => {
-  const insights = [
-    {
-      id: 1,
-      type: 'positive',
-      source: 'Reddit',
-      subreddit: 'r/nba',
-      content: 'His defense has been incredible this season. Completely locked down Tatum in the 4th quarter.',
-      score: 8.2,
-      upvotes: 847,
-      timeAgo: '2h ago',
-      url: '#'
-    },
-    {
-      id: 2,
-      type: 'negative',
-      source: 'Twitter',
-      handle: '@NBAAnalyst',
-      content: 'Concerning trend: 3PT% has dropped to 31% over last 10 games. Regression to the mean?',
-      score: 3.1,
-      likes: 234,
-      timeAgo: '3h ago',
-      url: '#'
-    },
-    {
-      id: 3,
-      type: 'neutral',
-      source: 'YouTube',
-      channel: 'ESPN',
-      content: 'Post-game interview: "We need to execute better in clutch situations"',
-      score: 5.8,
-      views: '12K views',
-      timeAgo: '4h ago',
-      url: '#'
-    },
-    {
-      id: 4,
-      type: 'positive',
-      source: 'News',
-      outlet: 'The Athletic',
-      content: 'Advanced metrics show elite defensive impact - 97.2 defensive rating when on court',
-      score: 7.9,
-      timeAgo: '5h ago',
-      url: '#'
-    },
-    {
-      id: 5,
-      type: 'negative',
-      source: 'Reddit',
-      subreddit: 'r/fantasybball',
-      content: 'Ankle looked a bit stiff during warm-ups. Worth monitoring for DFS lineups.',
-      score: 4.2,
-      upvotes: 156,
-      timeAgo: '6h ago',
-      url: '#'
-    }
-  ];
+  const [posts, setPosts] = useState<RedditPost[]>([]);
+  const [comments, setComments] = useState<RedditComment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const getTypeColor = (type) => {
-    switch (type) {
-      case 'positive': return 'text-green-400 border-green-400';
-      case 'negative': return 'text-red-400 border-red-400';
-      default: return 'text-yellow-400 border-yellow-400';
-    }
-  };
+  useEffect(() => {
+    if (!player?.name) return;
 
-  const getTypeIcon = (type) => {
-    switch (type) {
-      case 'positive': return <ThumbsUp className="w-4 h-4" />;
-      case 'negative': return <ThumbsDown className="w-4 h-4" />;
-      default: return <MessageSquare className="w-4 h-4" />;
-    }
-  };
-
-  const getSourceIcon = (source) => {
-    const icons = {
-      Reddit: '🔴',
-      Twitter: '🐦',
-      YouTube: '📺',
-      News: '📰'
+    const fetchData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        const { posts: redditPosts, comments: redditComments } = await redditApi.searchPlayerMentions(player.name);
+        setPosts(redditPosts);
+        setComments(redditComments);
+      } catch (err) {
+        console.error('Error fetching Reddit data:', err);
+        setError('Failed to load Reddit data');
+        setPosts([]);
+        setComments([]);
+      } finally {
+        setLoading(false);
+      }
     };
-    return icons[source] || '📄';
-  };
+
+    fetchData();
+  }, [player?.name]);
+
+  if (loading) {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardContent className="flex items-center justify-center p-8">
+          <div className="flex items-center space-x-3">
+            <Loader2 className="w-5 h-5 animate-spin text-blue-400" />
+            <span className="text-slate-300">Loading Reddit insights...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const positiveItems = getTopPosts(posts, 'positive', 3);
+  const negativeItems = getTopPosts(posts, 'negative', 3);
+  const allItems = [...positiveItems, ...negativeItems].sort((a, b) => b.score - a.score);
 
   return (
-    <Card className="bg-slate-800/50 border-slate-700">
-      <CardHeader>
-        <CardTitle className="text-white flex items-center justify-between">
-          <span>Live Insights</span>
-          <Badge variant="outline" className="text-green-400 border-green-400">
-            <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-            Live
-          </Badge>
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-4 max-h-96 overflow-y-auto">
-        {insights.map((insight) => (
-          <div 
-            key={insight.id}
-            className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors"
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex items-center space-x-2">
-                <span className="text-lg">{getSourceIcon(insight.source)}</span>
-                <div>
-                  <p className="text-sm text-slate-300 font-medium">{insight.source}</p>
-                  <p className="text-xs text-slate-500">
-                    {insight.subreddit || insight.handle || insight.channel || insight.outlet}
-                  </p>
+    <div className="space-y-6">
+      {/* Data Sources Status */}
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white text-lg">Data Sources</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-slate-300">Reddit</span>
+            <Badge variant="outline" className="text-green-400 border-green-400">
+              <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+              Active
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Twitter</span>
+            <Badge variant="outline" className="text-slate-500 border-slate-600">
+              Coming Soon
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">YouTube</span>
+            <Badge variant="outline" className="text-slate-500 border-slate-600">
+              Coming Soon
+            </Badge>
+          </div>
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">News</span>
+            <Badge variant="outline" className="text-slate-500 border-slate-600">
+              Coming Soon
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Reddit Insights */}
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardHeader>
+          <CardTitle className="text-white flex items-center">
+            <MessageCircle className="w-5 h-5 mr-2 text-orange-400" />
+            Reddit Insights
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {error && (
+            <div className="p-4 bg-red-900/20 border border-red-700 rounded-lg">
+              <p className="text-red-300 text-sm">{error}</p>
+            </div>
+          )}
+          
+          {!error && allItems.length === 0 && (
+            <div className="p-6 text-center">
+              <MessageCircle className="w-12 h-12 text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-400">No Reddit discussions found for {player?.name}</p>
+              <p className="text-slate-500 text-sm mt-1">Try searching for a different player</p>
+            </div>
+          )}
+
+          {!error && allItems.length > 0 && allItems.map((post, index) => (
+            <div 
+              key={post.id}
+              className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors"
+            >
+              <div className="flex items-start justify-between mb-2">
+                <Badge variant="outline" className="text-orange-400 border-orange-400 text-xs">
+                  r/{post.subreddit}
+                </Badge>
+                <div className="flex items-center text-slate-500 text-xs">
+                  <TrendingUp className="w-3 h-3 mr-1" />
+                  {post.score}
                 </div>
               </div>
-              <div className="flex items-center space-x-2">
-                <Badge variant="outline" className={getTypeColor(insight.type)}>
-                  {getTypeIcon(insight.type)}
-                  <span className="ml-1 text-xs">{insight.score}</span>
-                </Badge>
+              
+              <h4 className="text-slate-200 font-medium mb-2 text-sm leading-relaxed">
+                {post.title}
+              </h4>
+              
+              {post.selftext && post.selftext.length > 0 && (
+                <p className="text-slate-400 text-xs leading-relaxed mb-3">
+                  {post.selftext.length > 150 ? `${post.selftext.substring(0, 150)}...` : post.selftext}
+                </p>
+              )}
+              
+              <div className="flex items-center justify-between text-xs text-slate-500">
+                <span>u/{post.author}</span>
+                <div className="flex items-center">
+                  <MessageCircle className="w-3 h-3 mr-1" />
+                  {post.num_comments} comments
+                </div>
               </div>
             </div>
-            
-            <p className="text-slate-300 text-sm mb-3 leading-relaxed">
-              {insight.content}
-            </p>
-            
-            <div className="flex items-center justify-between text-xs text-slate-500">
-              <div className="flex items-center space-x-4">
-                <span className="flex items-center">
-                  <Clock className="w-3 h-3 mr-1" />
-                  {insight.timeAgo}
-                </span>
-                {insight.upvotes && (
-                  <span>{insight.upvotes} upvotes</span>
-                )}
-                {insight.likes && (
-                  <span>{insight.likes} likes</span>
-                )}
-                {insight.views && (
-                  <span>{insight.views}</span>
-                )}
-              </div>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                className="text-slate-400 hover:text-slate-300 p-1 h-auto"
-              >
-                <ExternalLink className="w-3 h-3" />
-              </Button>
+          ))}
+
+          {!error && posts.length > 0 && (
+            <div className="text-center pt-2">
+              <p className="text-slate-500 text-xs">
+                Showing {allItems.length} of {posts.length} Reddit posts
+              </p>
             </div>
-          </div>
-        ))}
-      </CardContent>
-    </Card>
+          )}
+        </CardContent>
+      </Card>
+    </div>
   );
 };
 

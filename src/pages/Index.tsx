@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Search, TrendingUp, TrendingDown, AlertTriangle, Activity, Users, Eye } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, AlertTriangle, Activity, Users, Eye, MessageCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -32,13 +33,13 @@ const Index = () => {
                 <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
                   SentiBet
                 </h1>
-                <p className="text-xs text-slate-400">Social Sports Intelligence</p>
+                <p className="text-xs text-slate-400">Reddit Sports Intelligence</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
-              <Badge variant="outline" className="text-green-400 border-green-400">
-                <div className="w-2 h-2 bg-green-400 rounded-full mr-2 animate-pulse"></div>
-                Live
+              <Badge variant="outline" className="text-orange-400 border-orange-400">
+                <MessageCircle className="w-3 h-3 mr-2" />
+                Reddit Only
               </Badge>
             </div>
           </div>
@@ -51,10 +52,10 @@ const Index = () => {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-                Social Media Intelligence for Smart Bettors
+                Reddit Intelligence for Smart Bettors
               </h2>
               <p className="text-xl text-slate-400 mb-8">
-                Uncover betting insights from Reddit, Twitter, and social chatter before the market catches on
+                Uncover betting insights from NBA Reddit discussions before the market catches on
               </p>
               
               <div className="max-w-2xl mx-auto">
@@ -68,10 +69,10 @@ const Index = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-400 text-sm">Data Sources</p>
-                      <p className="text-2xl font-bold text-white">4</p>
+                      <p className="text-slate-400 text-sm">Data Source</p>
+                      <p className="text-2xl font-bold text-white">Reddit</p>
                     </div>
-                    <Users className="w-8 h-8 text-blue-400" />
+                    <MessageCircle className="w-8 h-8 text-orange-400" />
                   </div>
                 </CardContent>
               </Card>
@@ -80,8 +81,8 @@ const Index = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-400 text-sm">Daily Mentions</p>
-                      <p className="text-2xl font-bold text-white">50K+</p>
+                      <p className="text-slate-400 text-sm">Subreddits</p>
+                      <p className="text-2xl font-bold text-white">2</p>
                     </div>
                     <Activity className="w-8 h-8 text-green-400" />
                   </div>
@@ -108,8 +109,8 @@ const Index = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-2xl font-bold text-white mb-2">Player Intelligence Report</h3>
-                <p className="text-slate-400">Last updated: {new Date().toLocaleTimeString()}</p>
+                <h3 className="text-2xl font-bold text-white mb-2">Reddit Intelligence Report</h3>
+                <p className="text-slate-400">Analyzing r/nba and r/fantasybball discussions • Last updated: {new Date().toLocaleTimeString()}</p>
               </div>
               <Button 
                 variant="outline" 

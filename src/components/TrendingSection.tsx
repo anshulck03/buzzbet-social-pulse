@@ -1,133 +1,108 @@
 
 import React from 'react';
-import { TrendingUp, TrendingDown, Flame, Clock } from 'lucide-react';
+import { TrendingUp, MessageCircle, Clock } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
 const TrendingSection = () => {
-  const trendingPlayers = [
-    {
-      name: 'LeBron James',
-      team: 'Lakers',
-      sentiment: 8.1,
-      change: +0.7,
-      reason: 'Triple-double performance',
-      mentions: 2847
-    },
-    {
-      name: 'Stephen Curry',
-      team: 'Warriors',
-      sentiment: 7.3,
-      change: +0.2,
-      reason: 'Clutch 3-pointers',
-      mentions: 1923
-    },
-    {
-      name: 'Luka Dončić',
-      team: 'Mavericks',
-      sentiment: 5.8,
-      change: -1.2,
-      reason: 'Injury concerns',
-      mentions: 1456
-    },
-    {
-      name: 'Jayson Tatum',
-      team: 'Celtics',
-      sentiment: 6.9,
-      change: +0.4,
-      reason: 'All-Star discussions',
-      mentions: 1234
-    }
-  ];
-
-  const hotTopics = [
-    'Trade deadline rumors',
-    'Injury reports',
-    'MVP race discussions',
-    'Playoff seeding talks'
-  ];
-
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center">
-            <Flame className="w-5 h-5 mr-2 text-orange-400" />
-            Trending Players
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {trendingPlayers.map((player, index) => (
-            <div key={index} className="flex items-center justify-between p-3 bg-slate-900/50 rounded-lg">
-              <div className="flex items-center space-x-3">
-                <div className="text-slate-400 font-mono text-sm w-6">
-                  #{index + 1}
-                </div>
-                <div>
-                  <p className="text-white font-medium">{player.name}</p>
-                  <p className="text-xs text-slate-400">{player.team} • {player.mentions} mentions</p>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                <div className="text-right">
-                  <div className="flex items-center space-x-1">
-                    <span className={`text-sm font-bold ${
-                      player.sentiment >= 7 ? 'text-green-400' : 
-                      player.sentiment >= 5 ? 'text-yellow-400' : 'text-red-400'
-                    }`}>
-                      {player.sentiment}
-                    </span>
-                    <div className="flex items-center">
-                      {player.change > 0 ? (
-                        <TrendingUp className="w-3 h-3 text-green-400" />
-                      ) : (
-                        <TrendingDown className="w-3 h-3 text-red-400" />
-                      )}
-                      <span className={`text-xs ml-1 ${
-                        player.change > 0 ? 'text-green-400' : 'text-red-400'
-                      }`}>
-                        {player.change > 0 ? '+' : ''}{player.change}
-                      </span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-slate-500">{player.reason}</p>
-                </div>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
+    <div className="space-y-8">
+      <div className="text-center">
+        <h3 className="text-2xl font-bold text-white mb-4">Platform Coverage</h3>
+        <p className="text-slate-400">Currently analyzing Reddit discussions with more sources coming soon</p>
+      </div>
 
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center">
-            <Clock className="w-5 h-5 mr-2 text-blue-400" />
-            Hot Topics
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {hotTopics.map((topic, index) => (
-            <div key={index} className="p-3 bg-slate-900/50 rounded-lg hover:bg-slate-800/50 transition-colors cursor-pointer">
-              <div className="flex items-center justify-between">
-                <span className="text-slate-300">{topic}</span>
-                <Badge variant="outline" className="text-slate-400 border-slate-600">
-                  {Math.floor(Math.random() * 500 + 100)} mentions
-                </Badge>
-              </div>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        {/* Reddit - Active */}
+        <Card className="bg-slate-800/50 border-slate-700 hover:border-orange-400 transition-colors">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <MessageCircle className="w-8 h-8 text-orange-400" />
+              <Badge variant="outline" className="text-green-400 border-green-400">
+                <div className="w-2 h-2 bg-green-400 rounded-full mr-2"></div>
+                Live
+              </Badge>
             </div>
-          ))}
-          
-          <div className="p-4 bg-gradient-to-r from-blue-900/20 to-purple-900/20 rounded-lg border border-blue-700/30">
-            <h4 className="text-white font-medium mb-2">Market Opportunity</h4>
-            <p className="text-sm text-slate-300 mb-3">
-              Sentiment gap detected: Public betting 65% on Lakers, but social sentiment only 52% positive
-            </p>
-            <Badge variant="outline" className="text-yellow-400 border-yellow-400">
-              Contrarian Signal
-            </Badge>
-          </div>
-        </CardContent>
-      </Card>
+            <h4 className="text-white font-semibold mb-2">Reddit</h4>
+            <p className="text-slate-400 text-sm mb-3">NBA discussions, fantasy advice, injury reports</p>
+            <div className="text-xs text-slate-500">
+              <p>• r/nba community posts</p>
+              <p>• r/fantasybball insights</p>
+              <p>• Real-time sentiment analysis</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Twitter - Coming Soon */}
+        <Card className="bg-slate-800/50 border-slate-700 opacity-60">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center">
+                <span className="text-slate-400 font-bold text-xs">X</span>
+              </div>
+              <Badge variant="outline" className="text-slate-500 border-slate-600">
+                Coming Soon
+              </Badge>
+            </div>
+            <h4 className="text-slate-300 font-semibold mb-2">Twitter/X</h4>
+            <p className="text-slate-500 text-sm mb-3">Breaking news, insider reports, fan reactions</p>
+            <div className="text-xs text-slate-600">
+              <p>• Real-time updates</p>
+              <p>• Verified accounts</p>
+              <p>• Viral discussions</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* YouTube - Coming Soon */}
+        <Card className="bg-slate-800/50 border-slate-700 opacity-60">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center">
+                <span className="text-slate-400 font-bold text-xs">YT</span>
+              </div>
+              <Badge variant="outline" className="text-slate-500 border-slate-600">
+                Coming Soon
+              </Badge>
+            </div>
+            <h4 className="text-slate-300 font-semibold mb-2">YouTube</h4>
+            <p className="text-slate-500 text-sm mb-3">Analysis videos, highlights, expert opinions</p>
+            <div className="text-xs text-slate-600">
+              <p>• Expert analysis</p>
+              <p>• Highlight reels</p>
+              <p>• Commentary channels</p>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* News - Coming Soon */}
+        <Card className="bg-slate-800/50 border-slate-700 opacity-60">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="w-8 h-8 bg-slate-600 rounded-lg flex items-center justify-center">
+                <span className="text-slate-400 font-bold text-xs">📰</span>
+              </div>
+              <Badge variant="outline" className="text-slate-500 border-slate-600">
+                Coming Soon
+              </Badge>
+            </div>
+            <h4 className="text-slate-300 font-semibold mb-2">Sports News</h4>
+            <p className="text-slate-500 text-sm mb-3">Official reports, injury updates, trades</p>
+            <div className="text-xs text-slate-600">
+              <p>• ESPN, Athletic</p>
+              <p>• Team announcements</p>
+              <p>• Beat reporters</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="text-center">
+        <div className="inline-flex items-center space-x-2 text-slate-400 text-sm">
+          <Clock className="w-4 h-4" />
+          <span>More data sources being integrated - stay tuned!</span>
+        </div>
+      </div>
     </div>
   );
 };
