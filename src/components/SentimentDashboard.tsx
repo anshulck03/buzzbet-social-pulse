@@ -1,34 +1,74 @@
 
-import React from 'react';
-import { TrendingUp, TrendingDown, AlertTriangle, Shield, Clock } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { TrendingUp, TrendingDown, AlertTriangle, Shield, Clock, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { redditApi } from '@/services/redditApi';
+import { analyzeSentiment, SentimentAnalysis } from '@/utils/sentimentAnalysis';
 
 const SentimentDashboard = ({ player }) => {
-  // Mock sentiment data
-  const sentimentData = {
-    overall: 7.2,
-    trend: 'up',
-    volume: 1247,
-    volumeChange: 23,
-    sources: {
-      reddit: { score: 6.8, volume: 342, trend: 'down' },
-      twitter: { score: 7.5, volume: 621, trend: 'up' },
-      youtube: { score: 7.1, volume: 89, trend: 'neutral' },
-      news: { score: 7.8, volume: 195, trend: 'up' }
-    },
-    alerts: [
-      { type: 'injury', message: 'Ankle concern mentioned 12 times in last hour', severity: 'medium' },
-      { type: 'contrarian', message: 'Sentiment 15% higher than betting odds suggest', severity: 'high' }
-    ],
-    timeline: [
-      { time: '2h ago', score: 6.9, event: 'Practice report' },
-      { time: '4h ago', score: 7.1, event: 'Interview posted' },
-      { time: '6h ago', score: 7.3, event: 'Game highlights' },
-      { time: '8h ago', score: 6.8, event: 'Trade rumors' },
-    ]
-  };
+  const [sentimentData, setSentimentData] = useState<SentimentAnalysis | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!player?.name) return;
+
+    const fetchSentimentData = async () => {
+      setLoading(true);
+      setError(null);
+      
+      try {
+        console.log(`Fetching Reddit data for ${player.name}`);
+        const { posts, comments } = await redditApi.searchPlayerMentions(player.name);
+        const analysis = analyzeSentiment(posts, comments);
+        setSentimentData(analysis);
+      } catch (err) {
+        console.error('Error fetching sentiment data:', err);
+        setError('Failed to load sentiment data. Using mock data.');
+        
+        // Fallback to mock data
+        setSentimentData({
+          score: 7.2,
+          confidence: 0.8,
+          positiveCount: 15,
+          negativeCount: 5,
+          injuryMentions: 2,
+          performanceMentions: 12,
+          totalMentions: 47,
+          insights: ['Mock data - Reddit API integration in progress', 'High performance discussion volume']
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSentimentData();
+  }, [player?.name]);
+
+  if (loading) {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardContent className="flex items-center justify-center p-12">
+          <div className="flex items-center space-x-3">
+            <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
+            <span className="text-slate-300">Analyzing Reddit sentiment...</span>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!sentimentData) {
+    return (
+      <Card className="bg-slate-800/50 border-slate-700">
+        <CardContent className="flex items-center justify-center p-12">
+          <span className="text-slate-400">No sentiment data available</span>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const getSentimentColor = (score) => {
     if (score >= 7) return 'text-green-400';
@@ -44,31 +84,42 @@ const SentimentDashboard = ({ player }) => {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <Card className="bg-yellow-900/20 border-yellow-700">
+          <CardContent className="p-4">
+            <div className="flex items-center space-x-2">
+              <AlertTriangle className="w-4 h-4 text-yellow-400" />
+              <span className="text-yellow-300 text-sm">{error}</span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Main Sentiment Score */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
-            <span className="text-white">Overall Sentiment</span>
+            <span className="text-white">Reddit Sentiment Analysis</span>
             <div className="flex items-center space-x-2">
-              {sentimentData.trend === 'up' ? (
+              {sentimentData.score > 5 ? (
                 <TrendingUp className="w-5 h-5 text-green-400" />
               ) : (
                 <TrendingDown className="w-5 h-5 text-red-400" />
               )}
               <Badge variant="outline" className="text-slate-300 border-slate-600">
-                {sentimentData.volume.toLocaleString()} mentions
+                {sentimentData.totalMentions} mentions
               </Badge>
             </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="flex items-center space-x-6">
-            <div className={`text-6xl font-bold ${getSentimentColor(sentimentData.overall)}`}>
-              {sentimentData.overall}
+            <div className={`text-6xl font-bold ${getSentimentColor(sentimentData.score)}`}>
+              {sentimentData.score}
             </div>
             <div className="flex-1">
               <Progress 
-                value={sentimentData.overall * 10} 
+                value={sentimentData.score * 10} 
                 className="h-3 bg-slate-700"
               />
               <div className="flex justify-between text-xs text-slate-400 mt-2">
@@ -76,105 +127,89 @@ const SentimentDashboard = ({ player }) => {
                 <span>Neutral</span>
                 <span>Bullish</span>
               </div>
+              <div className="mt-2 text-sm text-slate-400">
+                Confidence: {Math.round(sentimentData.confidence * 100)}%
+              </div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Alerts */}
+      {/* Insights */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center">
             <AlertTriangle className="w-5 h-5 mr-2 text-yellow-400" />
-            Active Alerts
+            Key Insights
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
-          {sentimentData.alerts.map((alert, index) => (
+          {sentimentData.insights.map((insight, index) => (
             <div 
               key={index}
-              className={`p-3 rounded-lg border ${
-                alert.severity === 'high' ? 'bg-red-900/20 border-red-700' : 'bg-yellow-900/20 border-yellow-700'
-              }`}
+              className="p-3 rounded-lg border bg-slate-900/20 border-slate-700"
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <Badge 
-                    variant="outline" 
-                    className={`mb-2 ${
-                      alert.type === 'injury' ? 'text-red-400 border-red-400' : 'text-blue-400 border-blue-400'
-                    }`}
-                  >
-                    {alert.type === 'injury' ? 'Injury Watch' : 'Contrarian Signal'}
-                  </Badge>
-                  <p className="text-slate-300 text-sm">{alert.message}</p>
-                </div>
-                <div className={`w-3 h-3 rounded-full ${
-                  alert.severity === 'high' ? 'bg-red-400' : 'bg-yellow-400'
-                } animate-pulse`}></div>
-              </div>
+              <p className="text-slate-300 text-sm">{insight}</p>
             </div>
           ))}
+          
+          {sentimentData.injuryMentions > 0 && (
+            <div className="p-3 rounded-lg border bg-red-900/20 border-red-700">
+              <div className="flex items-start justify-between">
+                <div>
+                  <Badge variant="outline" className="mb-2 text-red-400 border-red-400">
+                    Injury Watch
+                  </Badge>
+                  <p className="text-slate-300 text-sm">
+                    Injury mentioned {sentimentData.injuryMentions} times in recent discussions
+                  </p>
+                </div>
+                <div className="w-3 h-3 rounded-full bg-red-400 animate-pulse"></div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
-      {/* Source Breakdown */}
+      {/* Sentiment Breakdown */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
-          <CardTitle className="text-white">Source Analysis</CardTitle>
+          <CardTitle className="text-white">Sentiment Breakdown</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-4">
-            {Object.entries(sentimentData.sources).map(([source, data]) => (
-              <div key={source} className="p-4 bg-slate-900/50 rounded-lg">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="text-slate-300 capitalize font-medium">{source}</h4>
-                  <span className={`text-sm font-bold ${getSentimentColor(data.score)}`}>
-                    {data.score}
-                  </span>
-                </div>
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs text-slate-400">
-                    <span>Volume: {data.volume}</span>
-                    <span className={`${
-                      data.trend === 'up' ? 'text-green-400' : 
-                      data.trend === 'down' ? 'text-red-400' : 'text-slate-400'
-                    }`}>
-                      {data.trend === 'up' ? '↗' : data.trend === 'down' ? '↘' : '→'}
-                    </span>
-                  </div>
-                  <Progress value={data.score * 10} className="h-2 bg-slate-700" />
-                </div>
+            <div className="p-4 bg-slate-900/50 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-green-400 font-medium">Positive</h4>
+                <span className="text-green-400 font-bold">
+                  {sentimentData.positiveCount}
+                </span>
               </div>
-            ))}
+              <Progress 
+                value={(sentimentData.positiveCount / (sentimentData.positiveCount + sentimentData.negativeCount)) * 100} 
+                className="h-2 bg-slate-700" 
+              />
+            </div>
+            
+            <div className="p-4 bg-slate-900/50 rounded-lg">
+              <div className="flex items-center justify-between mb-3">
+                <h4 className="text-red-400 font-medium">Negative</h4>
+                <span className="text-red-400 font-bold">
+                  {sentimentData.negativeCount}
+                </span>
+              </div>
+              <Progress 
+                value={(sentimentData.negativeCount / (sentimentData.positiveCount + sentimentData.negativeCount)) * 100} 
+                className="h-2 bg-slate-700" 
+              />
+            </div>
           </div>
-        </CardContent>
-      </Card>
-
-      {/* Timeline */}
-      <Card className="bg-slate-800/50 border-slate-700">
-        <CardHeader>
-          <CardTitle className="text-white flex items-center">
-            <Clock className="w-5 h-5 mr-2" />
-            Sentiment Timeline
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            {sentimentData.timeline.map((item, index) => (
-              <div key={index} className="flex items-center space-x-4">
-                <div className="w-12 text-xs text-slate-400">{item.time}</div>
-                <div className={`w-3 h-3 rounded-full ${getSentimentBg(item.score)} ${getSentimentColor(item.score)}`}>
-                  <div className="w-full h-full rounded-full bg-current opacity-50"></div>
-                </div>
-                <div className="flex-1 flex items-center justify-between">
-                  <span className="text-slate-300 text-sm">{item.event}</span>
-                  <span className={`font-bold ${getSentimentColor(item.score)}`}>
-                    {item.score}
-                  </span>
-                </div>
-              </div>
-            ))}
+          
+          <div className="mt-4 p-3 bg-slate-900/50 rounded-lg">
+            <div className="flex justify-between text-sm text-slate-400">
+              <span>Performance mentions: {sentimentData.performanceMentions}</span>
+              <span>Sample size: {sentimentData.totalMentions}</span>
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Search, TrendingUp, TrendingDown, AlertTriangle, Activity, Users, Eye } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -59,7 +58,7 @@ const Index = () => {
               </p>
               
               <div className="max-w-2xl mx-auto">
-                <PlayerSearchBox onPlayerSelect={handlePlayerSelect} />
+                <PlayerSearchBox onPlayerSelect={handlePlayerSelect} value={null} />
               </div>
             </div>
 
