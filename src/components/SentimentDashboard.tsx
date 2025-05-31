@@ -1,18 +1,18 @@
 
 import React, { useEffect, useState } from 'react';
-import { TrendingUp, TrendingDown, AlertTriangle, Shield, Clock, Loader2, Hash, Brain, Target, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, AlertTriangle, Shield, Clock, Loader2, Hash, Brain, Target, Zap, Star, Trophy, Activity } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { redditApi } from '@/services/redditApi';
-import { groqAnalyzer, GroqSummaryAnalysis } from '@/services/groqAnalyzer';
+import { deepseekAnalyzer, DeepSeekSummaryAnalysis } from '@/services/deepseekAnalyzer';
 
 interface SentimentDashboardProps {
   player: { name: string; playerData?: any } | null;
 }
 
 const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
-  const [groqAnalysis, setGroqAnalysis] = useState<GroqSummaryAnalysis | null>(null);
+  const [aiAnalysis, setAiAnalysis] = useState<DeepSeekSummaryAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -24,31 +24,33 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
       setError(null);
       
       try {
-        console.log(`Fetching Reddit data for AI analysis: ${player.name}`);
-        const { posts, comments } = await redditApi.searchPlayerMentions(player.name);
+        console.log(`Fetching Reddit data for AI sports intelligence: ${player.name}`);
+        const { posts, comments } = await redditApi.searchPlayerMentions(player.name, player.playerData);
         
-        // Prepare posts for Groq analysis
+        // Prepare posts for DeepSeek analysis
         const postsForAnalysis = posts.map(post => ({
           title: post.title,
-          content: post.selftext || ''
+          content: post.selftext || '',
+          subreddit: post.subreddit
         }));
         
         // Add relevant comments as additional posts
-        const commentsForAnalysis = comments.slice(0, 10).map(comment => ({
-          title: 'Comment',
-          content: comment.body
+        const commentsForAnalysis = comments.slice(0, 8).map(comment => ({
+          title: 'Community Discussion',
+          content: comment.body,
+          subreddit: 'comment'
         }));
         
         const allContent = [...postsForAnalysis, ...commentsForAnalysis];
         
-        console.log(`Analyzing ${allContent.length} pieces of content with Groq AI`);
-        const analysis = await groqAnalyzer.summarizePosts(allContent, player.name);
-        setGroqAnalysis(analysis);
+        console.log(`Analyzing ${allContent.length} pieces of content with DeepSeek AI`);
+        const analysis = await deepseekAnalyzer.summarizePosts(allContent, player.name);
+        setAiAnalysis(analysis);
         
       } catch (err) {
-        console.error('Error fetching AI analysis:', err);
+        console.error('Error fetching AI sports intelligence:', err);
         setError('AI analysis temporarily unavailable - retrying...');
-        setGroqAnalysis(null);
+        setAiAnalysis(null);
       } finally {
         setLoading(false);
       }
@@ -63,7 +65,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
         <CardContent className="flex items-center justify-center p-12">
           <div className="flex items-center space-x-3">
             <Loader2 className="w-6 h-6 animate-spin text-blue-400" />
-            <span className="text-slate-300">AI analyzing Reddit sentiment...</span>
+            <span className="text-slate-300">AI analyzing sports intelligence...</span>
           </div>
         </CardContent>
       </Card>
@@ -84,7 +86,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
     );
   }
 
-  if (!groqAnalysis) {
+  if (!aiAnalysis) {
     return (
       <Card className="bg-slate-800/50 border-slate-700">
         <CardContent className="p-6">
@@ -98,20 +100,44 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
     );
   }
 
+  const getTrajectoryColor = (trajectory: string) => {
+    switch (trajectory) {
+      case 'Rising Star': return 'text-green-400 bg-green-900/20 border-green-700';
+      case 'Proven Performer': return 'text-blue-400 bg-blue-900/20 border-blue-700';
+      case 'Sleeper Pick': return 'text-purple-400 bg-purple-900/20 border-purple-700';
+      case 'Declining': return 'text-orange-400 bg-orange-900/20 border-orange-700';
+      case 'Avoid': return 'text-red-400 bg-red-900/20 border-red-700';
+      default: return 'text-slate-400 bg-slate-900/20 border-slate-700';
+    }
+  };
+
+  const getTrajectoryIcon = (trajectory: string) => {
+    switch (trajectory) {
+      case 'Rising Star': return <Star className="w-5 h-5" />;
+      case 'Proven Performer': return <Trophy className="w-5 h-5" />;
+      case 'Sleeper Pick': return <Activity className="w-5 h-5" />;
+      case 'Declining': return <TrendingDown className="w-5 h-5" />;
+      case 'Avoid': return <AlertTriangle className="w-5 h-5" />;
+      default: return <Activity className="w-5 h-5" />;
+    }
+  };
+
+  const getSportColor = (sport: string) => {
+    switch (sport) {
+      case 'NBA': return 'text-orange-400 border-orange-400';
+      case 'NFL': return 'text-green-400 border-green-400';
+      case 'NHL': return 'text-blue-400 border-blue-400';
+      case 'MLB': return 'text-red-400 border-red-400';
+      default: return 'text-slate-400 border-slate-400';
+    }
+  };
+
   const getScoreColor = (score: number) => {
     if (score >= 6) return 'text-green-400';
     if (score >= 2) return 'text-lime-400';
     if (score >= -2) return 'text-yellow-400';
     if (score >= -6) return 'text-orange-400';
     return 'text-red-400';
-  };
-
-  const getScoreLabel = (score: number) => {
-    if (score >= 6) return 'Strong Buy';
-    if (score >= 2) return 'Buy';
-    if (score >= -2) return 'Hold';
-    if (score >= -6) return 'Sell';
-    return 'Strong Sell';
   };
 
   const getSentimentColor = (sentiment: string) => {
@@ -124,75 +150,79 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
 
   return (
     <div className="space-y-6">
-      {/* AI-Powered Main Analysis */}
+      {/* AI-Powered Sports Intelligence */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
           <CardTitle className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Brain className="w-5 h-5 text-blue-400" />
-              <span className="text-white">AI Reddit Intelligence</span>
+              <span className="text-white">Sports Intelligence Report</span>
             </div>
             <div className="flex items-center space-x-2">
-              {groqAnalysis.aggregatedScore > 0 ? (
-                <TrendingUp className="w-5 h-5 text-green-400" />
-              ) : (
-                <TrendingDown className="w-5 h-5 text-red-400" />
+              {aiAnalysis.sport !== 'unknown' && (
+                <Badge variant="outline" className={`${getSportColor(aiAnalysis.sport)} text-xs`}>
+                  {aiAnalysis.sport}
+                </Badge>
               )}
               <Badge variant="outline" className="text-blue-400 border-blue-400">
                 <Zap className="w-3 h-3 mr-1" />
-                Groq Powered
+                DeepSeek AI
               </Badge>
             </div>
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center space-x-6">
-            <div className={`text-6xl font-bold ${getScoreColor(groqAnalysis.aggregatedScore)}`}>
-              {groqAnalysis.aggregatedScore >= 0 ? '+' : ''}{groqAnalysis.aggregatedScore}
+          {/* Performance Trajectory */}
+          <div className={`mb-6 p-4 rounded-lg border ${getTrajectoryColor(aiAnalysis.performanceTrajectory)}`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="flex items-center space-x-2">
+                {getTrajectoryIcon(aiAnalysis.performanceTrajectory)}
+                <span className="font-bold text-lg">{aiAnalysis.performanceTrajectory}</span>
+              </div>
+              <div className="flex items-center space-x-4">
+                <div className={`text-3xl font-bold ${getScoreColor(aiAnalysis.performanceScore)}`}>
+                  {aiAnalysis.performanceScore >= 0 ? '+' : ''}{aiAnalysis.performanceScore}
+                </div>
+              </div>
             </div>
-            <div className="flex-1">
-              <div className="mb-2">
-                <span className={`text-lg font-medium ${getScoreColor(groqAnalysis.aggregatedScore)}`}>
-                  {getScoreLabel(groqAnalysis.aggregatedScore)}
-                </span>
-              </div>
-              <Progress 
-                value={((groqAnalysis.aggregatedScore + 10) / 20) * 100} 
-                className="h-3 bg-slate-700"
-              />
-              <div className="flex justify-between text-xs text-slate-400 mt-2">
-                <span>Strong Sell</span>
-                <span>Hold</span>
-                <span>Strong Buy</span>
-              </div>
-              <div className="mt-2 flex items-center justify-between text-sm">
-                <span className="text-slate-400">
-                  AI Confidence: {groqAnalysis.confidenceLevel}%
-                </span>
-                <span className={`${getSentimentColor(groqAnalysis.sentiment)} font-medium`}>
-                  {groqAnalysis.sentiment.toUpperCase()} ({groqAnalysis.sentimentConfidence}%)
-                </span>
-              </div>
+            <Progress 
+              value={((aiAnalysis.performanceScore + 10) / 20) * 100} 
+              className="h-2 bg-slate-700 mb-2"
+            />
+            <div className="flex justify-between text-xs text-slate-400">
+              <span>Avoid</span>
+              <span>Monitor</span>
+              <span>Rising Star</span>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-sm">
+              <span className="text-slate-400">
+                Trajectory Confidence: {aiAnalysis.trajectoryConfidence}%
+              </span>
+              <span className={`${getSentimentColor(aiAnalysis.sentiment)} font-medium`}>
+                {aiAnalysis.sentiment.toUpperCase()} ({aiAnalysis.sentimentConfidence}%)
+              </span>
             </div>
           </div>
           
-          <div className="mt-6 p-4 bg-slate-900/50 rounded-lg">
-            <h4 className="text-white font-medium mb-2">Overall Sentiment</h4>
-            <p className="text-slate-300 text-sm">{groqAnalysis.overallSentiment}</p>
+          {/* Player Summary */}
+          <div className="mb-6 p-4 bg-slate-900/50 rounded-lg">
+            <h4 className="text-white font-medium mb-2">Player Summary</h4>
+            <p className="text-slate-300 text-sm leading-relaxed">{aiAnalysis.playerSummary}</p>
           </div>
 
-          <div className="mt-4 p-4 bg-slate-900/50 rounded-lg">
+          {/* AI Recommendation */}
+          <div className="p-4 bg-slate-900/50 rounded-lg">
             <h4 className="text-white font-medium mb-2 flex items-center">
               <Target className="w-4 h-4 mr-2 text-green-400" />
               AI Recommendation
             </h4>
-            <p className="text-slate-300 text-sm">{groqAnalysis.recommendation}</p>
+            <p className="text-slate-300 text-sm leading-relaxed">{aiAnalysis.recommendation}</p>
           </div>
         </CardContent>
       </Card>
 
       {/* Key Trends Analysis */}
-      {groqAnalysis.keyTrends.length > 0 && (
+      {aiAnalysis.keyTrends.length > 0 && (
         <Card className="bg-slate-800/50 border-slate-700">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
@@ -202,12 +232,12 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
           </CardHeader>
           <CardContent>
             <div className="space-y-3">
-              {groqAnalysis.keyTrends.map((trend, index) => (
+              {aiAnalysis.keyTrends.map((trend, index) => (
                 <div 
                   key={index}
                   className="p-3 bg-slate-900/50 rounded-lg border-l-4 border-blue-400"
                 >
-                  <p className="text-slate-300 text-sm">{trend}</p>
+                  <p className="text-slate-300 text-sm leading-relaxed">{trend}</p>
                 </div>
               ))}
             </div>
@@ -215,34 +245,10 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
         </Card>
       )}
 
-      {/* Risk Factors & Opportunities */}
+      {/* Opportunities & Risk Factors */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Risk Factors */}
-        {groqAnalysis.riskFactors.length > 0 && (
-          <Card className="bg-slate-800/50 border-slate-700">
-            <CardHeader>
-              <CardTitle className="text-white flex items-center">
-                <AlertTriangle className="w-5 h-5 mr-2 text-red-400" />
-                Risk Factors
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                {groqAnalysis.riskFactors.map((risk, index) => (
-                  <div 
-                    key={index}
-                    className="p-2 bg-red-900/20 rounded-lg border border-red-700/50"
-                  >
-                    <p className="text-red-300 text-sm">{risk}</p>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-
         {/* Opportunities */}
-        {groqAnalysis.opportunities.length > 0 && (
+        {aiAnalysis.opportunities.length > 0 && (
           <Card className="bg-slate-800/50 border-slate-700">
             <CardHeader>
               <CardTitle className="text-white flex items-center">
@@ -252,12 +258,36 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                {groqAnalysis.opportunities.map((opportunity, index) => (
+                {aiAnalysis.opportunities.map((opportunity, index) => (
                   <div 
                     key={index}
-                    className="p-2 bg-green-900/20 rounded-lg border border-green-700/50"
+                    className="p-3 bg-green-900/20 rounded-lg border border-green-700/50"
                   >
-                    <p className="text-green-300 text-sm">{opportunity}</p>
+                    <p className="text-green-300 text-sm leading-relaxed">{opportunity}</p>
+                  </div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Risk Factors */}
+        {aiAnalysis.riskFactors.length > 0 && (
+          <Card className="bg-slate-800/50 border-slate-700">
+            <CardHeader>
+              <CardTitle className="text-white flex items-center">
+                <AlertTriangle className="w-5 h-5 mr-2 text-red-400" />
+                Risk Factors
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                {aiAnalysis.riskFactors.map((risk, index) => (
+                  <div 
+                    key={index}
+                    className="p-3 bg-red-900/20 rounded-lg border border-red-700/50"
+                  >
+                    <p className="text-red-300 text-sm leading-relaxed">{risk}</p>
                   </div>
                 ))}
               </div>
@@ -266,20 +296,44 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
         )}
       </div>
 
-      {/* Timeline Analysis */}
+      {/* Fantasy Impact */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
           <CardTitle className="text-white flex items-center">
-            <Clock className="w-5 h-5 mr-2 text-purple-400" />
-            Timeline Analysis
+            <Trophy className="w-5 h-5 mr-2 text-purple-400" />
+            Fantasy Impact Analysis
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="p-4 bg-slate-900/50 rounded-lg">
-            <p className="text-slate-300 text-sm">{groqAnalysis.timeline}</p>
+            <p className="text-slate-300 text-sm leading-relaxed">{aiAnalysis.fantasyImpact}</p>
           </div>
         </CardContent>
       </Card>
+
+      {/* Data Sources */}
+      {aiAnalysis.subredditsAnalyzed.length > 0 && (
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-white flex items-center">
+              <Hash className="w-5 h-5 mr-2 text-orange-400" />
+              AI-Discovered Sources
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {aiAnalysis.subredditsAnalyzed.map((subreddit, index) => (
+                <Badge key={index} variant="outline" className="text-orange-400 border-orange-400">
+                  r/{subreddit}
+                </Badge>
+              ))}
+            </div>
+            <p className="text-slate-500 text-xs mt-3">
+              AI analyzed {aiAnalysis.subredditsAnalyzed.length} intelligent subreddit sources
+            </p>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 };

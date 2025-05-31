@@ -1,3 +1,4 @@
+
 const REDDIT_CLIENT_ID = '-7EV03N1xVXY3vda_h_Dzw';
 const REDDIT_CLIENT_SECRET = 'jat9LYjzT_G52kMIpPcTIUdLIqBdhA';
 
@@ -23,16 +24,8 @@ interface RedditComment {
   permalink: string;
 }
 
-// Sport-specific subreddit configurations
-const SPORT_SUBREDDITS = {
-  NBA: ['nba', 'fantasybball'],
-  NFL: ['nfl', 'fantasyfootball'],
-  MLB: ['baseball', 'fantasybaseball'],
-  NHL: ['hockey', 'fantasyhockey'],
-  general: ['sports']
-};
-
-import { ESPNPlayer, getTeamSubreddit } from '@/services/espnPlayerDatabase';
+import { ESPNPlayer } from '@/services/espnPlayerDatabase';
+import { subredditDiscovery } from '@/services/subredditDiscovery';
 
 class RedditApiService {
   private accessToken: string | null = null;
@@ -87,7 +80,7 @@ class RedditApiService {
     return data.data.children.map((child: any) => child.data);
   }
 
-  async getSubredditPosts(subreddit: string, query: string, limit: number = 25): Promise<RedditPost[]> {
+  async getSubredditPosts(subreddit: string, query: string, limit: number = 10): Promise<RedditPost[]> {
     const token = await this.getAccessToken();
     
     const response = await fetch(
@@ -148,42 +141,24 @@ class RedditApiService {
 
   async searchPlayerMentions(playerName: string, playerData?: ESPNPlayer): Promise<{posts: RedditPost[], comments: RedditComment[], searchedSubreddits: string[]}> {
     try {
-      console.log(`Searching Reddit for: ${playerName}`);
+      console.log(`AI-powered subreddit discovery for: ${playerName}`);
       
-      let subredditsToSearch: string[] = [];
+      // Use intelligent subreddit discovery
+      const targetSubreddits = subredditDiscovery.discoverSubreddits(playerName, playerData);
       
       if (playerData) {
-        // Sport-specific subreddits based on actual player data
-        const sportSubreddits = SPORT_SUBREDDITS[playerData.sport] || [];
-        subredditsToSearch = [...sportSubreddits];
-        
-        // Add team-specific subreddit if available
-        const teamSubreddit = getTeamSubreddit(playerData.team, playerData.sport);
-        if (teamSubreddit) {
-          subredditsToSearch.push(teamSubreddit);
-        }
-        
-        console.log(`Searching ${playerData.sport} player in:`, subredditsToSearch);
+        console.log(`Analyzing ${playerData.sport} player across ${targetSubreddits.length} intelligent subreddits`);
       } else {
-        // Search all sports if player not in database
-        subredditsToSearch = [
-          ...SPORT_SUBREDDITS.NBA,
-          ...SPORT_SUBREDDITS.NFL,
-          ...SPORT_SUBREDDITS.MLB,
-          ...SPORT_SUBREDDITS.NHL,
-          ...SPORT_SUBREDDITS.general
-        ];
-        
-        console.log('Player not in database, searching all sports subreddits');
+        console.log(`Multi-sport analysis across ${targetSubreddits.length} subreddits`);
       }
       
       const allPosts: RedditPost[] = [];
       const searchedSubreddits: string[] = [];
       
-      // Search each relevant subreddit
-      for (const subreddit of subredditsToSearch) {
+      // Search each intelligent subreddit with priority
+      for (const subreddit of targetSubreddits) {
         try {
-          const posts = await this.getSubredditPosts(subreddit, playerName, 8);
+          const posts = await this.getSubredditPosts(subreddit, playerName, 6);
           if (posts.length > 0) {
             // Filter posts to only include those that actually mention the player
             const relevantPosts = posts.filter(post => 
@@ -192,7 +167,13 @@ class RedditApiService {
             );
             
             if (relevantPosts.length > 0) {
-              allPosts.push(...relevantPosts);
+              // Add subreddit info to posts for sport detection
+              const postsWithSubreddit = relevantPosts.map(post => ({
+                ...post,
+                subreddit: subreddit
+              }));
+              
+              allPosts.push(...postsWithSubreddit);
               searchedSubreddits.push(subreddit);
             }
           }
@@ -201,16 +182,28 @@ class RedditApiService {
         }
       }
       
-      // Sort by score and remove duplicates
-      const uniquePosts = allPosts.filter((post, index, self) => 
+      // Sort by relevance using sport detection and subreddit priority
+      const sortedPosts = allPosts.sort((a, b) => {
+        const aPriority = subredditDiscovery.getSubredditPriority(a.subreddit, playerData?.sport);
+        const bPriority = subredditDiscovery.getSubredditPriority(b.subreddit, playerData?.sport);
+        
+        if (aPriority !== bPriority) {
+          return bPriority - aPriority; // Higher priority first
+        }
+        
+        return b.score - a.score; // Then by score
+      });
+      
+      // Remove duplicates
+      const uniquePosts = sortedPosts.filter((post, index, self) => 
         index === self.findIndex(p => p.id === post.id)
-      ).sort((a, b) => b.score - a.score);
+      );
       
       // Get comments from top posts that mention the player
       const comments: RedditComment[] = [];
-      for (const post of uniquePosts.slice(0, 5)) {
+      for (const post of uniquePosts.slice(0, 6)) {
         try {
-          const postComments = await this.getPostComments(post.id, 30);
+          const postComments = await this.getPostComments(post.id, 20);
           // Filter comments to only include those mentioning the player
           const relevantComments = postComments.filter(comment =>
             comment.body.toLowerCase().includes(playerName.toLowerCase())
@@ -221,8 +214,8 @@ class RedditApiService {
         }
       }
       
-      console.log(`Found ${uniquePosts.length} posts and ${comments.length} comments for ${playerName}`);
-      console.log(`Searched subreddits: ${searchedSubreddits.join(', ')}`);
+      console.log(`AI Discovery Results: ${uniquePosts.length} posts, ${comments.length} comments across ${searchedSubreddits.length} subreddits`);
+      console.log(`Analyzed subreddits: ${searchedSubreddits.join(', ')}`);
       
       return {
         posts: uniquePosts,
@@ -230,7 +223,7 @@ class RedditApiService {
         searchedSubreddits: searchedSubreddits
       };
     } catch (error) {
-      console.error('Error searching Reddit:', error);
+      console.error('Error in AI-powered Reddit search:', error);
       throw error;
     }
   }

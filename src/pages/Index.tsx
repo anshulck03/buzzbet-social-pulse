@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Search, TrendingUp, TrendingDown, AlertTriangle, Activity, Users, Eye, MessageCircle } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, AlertTriangle, Activity, Users, Eye, MessageCircle, Brain, Hash, Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -34,13 +34,13 @@ const Index = () => {
                 <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
                   SentiBet
                 </h1>
-                <p className="text-xs text-slate-400">Reddit Sports Intelligence</p>
+                <p className="text-xs text-slate-400">Multi-Sport Intelligence Platform</p>
               </div>
             </div>
             <div className="flex items-center space-x-4">
               <Badge variant="outline" className="text-orange-400 border-orange-400">
                 <MessageCircle className="w-3 h-3 mr-2" />
-                Reddit Only
+                AI-Powered
               </Badge>
             </div>
           </div>
@@ -53,10 +53,10 @@ const Index = () => {
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
               <h2 className="text-4xl font-bold mb-4 bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-                Reddit Intelligence for Smart Bettors
+                AI-Powered Multi-Sport Intelligence
               </h2>
               <p className="text-xl text-slate-400 mb-8">
-                Uncover betting insights from NBA Reddit discussions before the market catches on
+                Comprehensive sports intelligence across NBA, NFL, NHL, and MLB with AI-powered subreddit discovery
               </p>
               
               <div className="max-w-2xl mx-auto">
@@ -70,10 +70,10 @@ const Index = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-400 text-sm">Data Source</p>
-                      <p className="text-2xl font-bold text-white">Reddit</p>
+                      <p className="text-slate-400 text-sm">Intelligence Engine</p>
+                      <p className="text-2xl font-bold text-white">DeepSeek AI</p>
                     </div>
-                    <MessageCircle className="w-8 h-8 text-orange-400" />
+                    <Brain className="w-8 h-8 text-blue-400" />
                   </div>
                 </CardContent>
               </Card>
@@ -82,10 +82,10 @@ const Index = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-400 text-sm">Subreddits</p>
-                      <p className="text-2xl font-bold text-white">2</p>
+                      <p className="text-slate-400 text-sm">Subreddit Discovery</p>
+                      <p className="text-2xl font-bold text-white">200+</p>
                     </div>
-                    <Activity className="w-8 h-8 text-green-400" />
+                    <Hash className="w-8 h-8 text-orange-400" />
                   </div>
                 </CardContent>
               </Card>
@@ -94,11 +94,50 @@ const Index = () => {
                 <CardContent className="p-6">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-slate-400 text-sm">Update Frequency</p>
-                      <p className="text-2xl font-bold text-white">Real-time</p>
+                      <p className="text-slate-400 text-sm">Sports Covered</p>
+                      <p className="text-2xl font-bold text-white">4 Major</p>
                     </div>
-                    <Eye className="w-8 h-8 text-purple-400" />
+                    <Trophy className="w-8 h-8 text-green-400" />
                   </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Sports Coverage */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
+              <Card className="bg-slate-800/50 border-slate-700 hover:border-orange-400 transition-colors">
+                <CardContent className="p-4 text-center">
+                  <div className="w-12 h-12 bg-orange-500/20 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <span className="text-orange-400 font-bold text-lg">NBA</span>
+                  </div>
+                  <p className="text-slate-300 text-sm">Basketball Intelligence</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-slate-800/50 border-slate-700 hover:border-green-400 transition-colors">
+                <CardContent className="p-4 text-center">
+                  <div className="w-12 h-12 bg-green-500/20 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <span className="text-green-400 font-bold text-lg">NFL</span>
+                  </div>
+                  <p className="text-slate-300 text-sm">Football Intelligence</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-slate-800/50 border-slate-700 hover:border-blue-400 transition-colors">
+                <CardContent className="p-4 text-center">
+                  <div className="w-12 h-12 bg-blue-500/20 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <span className="text-blue-400 font-bold text-lg">NHL</span>
+                  </div>
+                  <p className="text-slate-300 text-sm">Hockey Intelligence</p>
+                </CardContent>
+              </Card>
+              
+              <Card className="bg-slate-800/50 border-slate-700 hover:border-red-400 transition-colors">
+                <CardContent className="p-4 text-center">
+                  <div className="w-12 h-12 bg-red-500/20 rounded-lg flex items-center justify-center mx-auto mb-3">
+                    <span className="text-red-400 font-bold text-lg">MLB</span>
+                  </div>
+                  <p className="text-slate-300 text-sm">Baseball Intelligence</p>
                 </CardContent>
               </Card>
             </div>
@@ -110,8 +149,8 @@ const Index = () => {
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="text-2xl font-bold text-white mb-2">Reddit Intelligence Report</h3>
-                <p className="text-slate-400">Analyzing r/nba and r/fantasybball discussions • Last updated: {new Date().toLocaleTimeString()}</p>
+                <h3 className="text-2xl font-bold text-white mb-2">Sports Intelligence Report</h3>
+                <p className="text-slate-400">AI-powered analysis across 200+ sports subreddits • Last updated: {new Date().toLocaleTimeString()}</p>
               </div>
               <Button 
                 variant="outline" 
