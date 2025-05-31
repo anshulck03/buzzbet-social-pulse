@@ -24,6 +24,14 @@ interface RedditComment {
   permalink: string;
 }
 
+// Sport-specific subreddit configurations
+const SPORT_SUBREDDITS = {
+  nba: ['nba', 'fantasybball'],
+  nfl: ['nfl', 'fantasyfootball'],
+  mlb: ['baseball', 'fantasybaseball'],
+  general: ['sports']
+};
+
 class RedditApiService {
   private accessToken: string | null = null;
   private tokenExpiry: number = 0;
@@ -51,7 +59,7 @@ class RedditApiService {
 
     const data = await response.json();
     this.accessToken = data.access_token;
-    this.tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000; // Subtract 1 minute for safety
+    this.tokenExpiry = Date.now() + (data.expires_in * 1000) - 60000;
 
     return this.accessToken;
   }
@@ -136,22 +144,42 @@ class RedditApiService {
     return comments;
   }
 
-  async searchPlayerMentions(playerName: string): Promise<{posts: RedditPost[], comments: RedditComment[]}> {
+  async searchPlayerMentions(playerName: string): Promise<{posts: RedditPost[], comments: RedditComment[], searchedSubreddits: string[]}> {
     try {
       console.log(`Searching Reddit for: ${playerName}`);
       
-      // Search in NBA subreddit
-      const nbaPosts = await this.getSubredditPosts('nba', playerName, 10);
+      // Search all sports subreddits
+      const allSubreddits = [
+        ...SPORT_SUBREDDITS.nba,
+        ...SPORT_SUBREDDITS.nfl,
+        ...SPORT_SUBREDDITS.mlb,
+        ...SPORT_SUBREDDITS.general
+      ];
       
-      // Search in fantasy basketball subreddit
-      const fantasyPosts = await this.getSubredditPosts('fantasybball', playerName, 5);
+      const allPosts: RedditPost[] = [];
+      const searchedSubreddits: string[] = [];
       
-      // Combine posts
-      const allPosts = [...nbaPosts, ...fantasyPosts];
+      // Search each subreddit
+      for (const subreddit of allSubreddits) {
+        try {
+          const posts = await this.getSubredditPosts(subreddit, playerName, 5);
+          if (posts.length > 0) {
+            allPosts.push(...posts);
+            searchedSubreddits.push(subreddit);
+          }
+        } catch (error) {
+          console.warn(`Failed to search r/${subreddit}:`, error);
+        }
+      }
+      
+      // Sort by score and remove duplicates
+      const uniquePosts = allPosts.filter((post, index, self) => 
+        index === self.findIndex(p => p.id === post.id)
+      ).sort((a, b) => b.score - a.score);
       
       // Get comments from top posts
       const comments: RedditComment[] = [];
-      for (const post of allPosts.slice(0, 3)) {
+      for (const post of uniquePosts.slice(0, 3)) {
         try {
           const postComments = await this.getPostComments(post.id, 25);
           comments.push(...postComments);
@@ -160,11 +188,13 @@ class RedditApiService {
         }
       }
       
-      console.log(`Found ${allPosts.length} posts and ${comments.length} comments for ${playerName}`);
+      console.log(`Found ${uniquePosts.length} posts and ${comments.length} comments for ${playerName}`);
+      console.log(`Searched subreddits: ${searchedSubreddits.join(', ')}`);
       
       return {
-        posts: allPosts,
-        comments: comments
+        posts: uniquePosts,
+        comments: comments,
+        searchedSubreddits: searchedSubreddits
       };
     } catch (error) {
       console.error('Error searching Reddit:', error);

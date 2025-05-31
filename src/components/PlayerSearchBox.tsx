@@ -8,24 +8,8 @@ const PlayerSearchBox = ({ onPlayerSelect, value }) => {
   const [searchTerm, setSearchTerm] = useState(value?.name || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [recentSearches] = useState([
-    'LeBron James', 'Stephen Curry', 'Luka Dončić', 'Jayson Tatum'
+    'LeBron James', 'Tom Brady', 'Aaron Judge', 'Stephen Curry', 'Patrick Mahomes', 'Mookie Betts'
   ]);
-  
-  // Mock NBA players data
-  const players = [
-    { id: 1, name: 'LeBron James', team: 'Lakers', position: 'SF' },
-    { id: 2, name: 'Stephen Curry', team: 'Warriors', position: 'PG' },
-    { id: 3, name: 'Luka Dončić', team: 'Mavericks', position: 'PG' },
-    { id: 4, name: 'Jayson Tatum', team: 'Celtics', position: 'SF' },
-    { id: 5, name: 'Nikola Jokić', team: 'Nuggets', position: 'C' },
-    { id: 6, name: 'Giannis Antetokounmpo', team: 'Bucks', position: 'PF' },
-    { id: 7, name: 'Kevin Durant', team: 'Suns', position: 'SF' },
-    { id: 8, name: 'Damian Lillard', team: 'Bucks', position: 'PG' },
-  ];
-
-  const filteredPlayers = players.filter(player =>
-    player.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const inputRef = useRef(null);
 
@@ -40,10 +24,11 @@ const PlayerSearchBox = ({ onPlayerSelect, value }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handlePlayerClick = (player) => {
-    setSearchTerm(player.name);
+  const handlePlayerClick = (playerName) => {
+    setSearchTerm(playerName);
     setShowSuggestions(false);
-    onPlayerSelect(player);
+    // Create a generic player object for any name
+    onPlayerSelect({ name: playerName });
   };
 
   const handleInputChange = (e) => {
@@ -55,25 +40,34 @@ const PlayerSearchBox = ({ onPlayerSelect, value }) => {
     setShowSuggestions(true);
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (searchTerm.trim()) {
+      handlePlayerClick(searchTerm.trim());
+    }
+  };
+
   return (
     <div className="relative" ref={inputRef}>
-      <div className="relative">
-        <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
-        <Input
-          type="text"
-          placeholder="Search NBA players..."
-          value={searchTerm}
-          onChange={handleInputChange}
-          onFocus={handleInputFocus}
-          className="pl-12 pr-4 py-4 text-lg bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500"
-        />
-      </div>
+      <form onSubmit={handleSubmit}>
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
+          <Input
+            type="text"
+            placeholder="Search any NBA, NFL, or MLB player..."
+            value={searchTerm}
+            onChange={handleInputChange}
+            onFocus={handleInputFocus}
+            className="pl-12 pr-4 py-4 text-lg bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500"
+          />
+        </div>
+      </form>
 
       {showSuggestions && (
         <Card className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border-slate-600 z-50 max-h-96 overflow-y-auto">
           <CardContent className="p-0">
             {searchTerm === '' && (
-              <div className="p-4 border-b border-slate-700">
+              <div className="p-4">
                 <p className="text-sm text-slate-400 mb-3 flex items-center">
                   <Star className="w-4 h-4 mr-2" />
                   Recent Searches
@@ -81,40 +75,34 @@ const PlayerSearchBox = ({ onPlayerSelect, value }) => {
                 {recentSearches.map((search, index) => (
                   <button
                     key={index}
-                    onClick={() => {
-                      setSearchTerm(search);
-                      const player = players.find(p => p.name === search);
-                      if (player) handlePlayerClick(player);
-                    }}
+                    onClick={() => handlePlayerClick(search)}
                     className="block w-full text-left px-2 py-2 text-slate-300 hover:bg-slate-700 rounded text-sm"
                   >
                     {search}
                   </button>
                 ))}
+                <div className="mt-4 p-3 bg-slate-900/50 rounded-lg">
+                  <p className="text-xs text-slate-500">
+                    💡 Tip: You can search for any professional athlete from NBA, NFL, or MLB
+                  </p>
+                </div>
               </div>
             )}
             
-            {filteredPlayers.length > 0 ? (
-              <div className="p-2">
-                {filteredPlayers.map((player) => (
-                  <button
-                    key={player.id}
-                    onClick={() => handlePlayerClick(player)}
-                    className="w-full flex items-center justify-between p-3 hover:bg-slate-700 rounded text-left"
-                  >
-                    <div>
-                      <p className="text-white font-medium">{player.name}</p>
-                      <p className="text-sm text-slate-400">{player.team} • {player.position}</p>
-                    </div>
-                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
-                  </button>
-                ))}
+            {searchTerm !== '' && (
+              <div className="p-4">
+                <button
+                  onClick={() => handlePlayerClick(searchTerm)}
+                  className="w-full flex items-center justify-between p-3 hover:bg-slate-700 rounded text-left border border-slate-600"
+                >
+                  <div>
+                    <p className="text-white font-medium">Search for "{searchTerm}"</p>
+                    <p className="text-sm text-slate-400">Press Enter or click to search</p>
+                  </div>
+                  <Search className="w-4 h-4 text-slate-400" />
+                </button>
               </div>
-            ) : searchTerm !== '' ? (
-              <div className="p-4 text-center text-slate-400">
-                No players found for "{searchTerm}"
-              </div>
-            ) : null}
+            )}
           </CardContent>
         </Card>
       )}
