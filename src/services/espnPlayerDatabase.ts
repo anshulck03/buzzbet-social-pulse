@@ -12,6 +12,8 @@ export interface ESPNPlayer {
   matchScore?: number;
 }
 
+import { MANUAL_PLAYER_OVERRIDES, ManualPlayer } from '@/data/manualPlayerOverrides';
+
 class FreePlayerDatabase {
   private players: ESPNPlayer[] = [];
   private isLoaded = false;
@@ -34,6 +36,14 @@ class FreePlayerDatabase {
     ];
 
     console.log('Loading players from ESPN team rosters...');
+
+    // Add manual overrides first
+    this.players = MANUAL_PLAYER_OVERRIDES.map(player => ({
+      ...player,
+      searchTerms: this.createSearchTerms(player.name, player.firstName, player.lastName)
+    }));
+
+    console.log(`Added ${MANUAL_PLAYER_OVERRIDES.length} manual player overrides`);
 
     for (const { sport, sportPath } of sportConfigs) {
       console.log(`Loading ${sport} players...`);
@@ -82,23 +92,31 @@ class FreePlayerDatabase {
                 if (athleteGroup.items && Array.isArray(athleteGroup.items)) {
                   athleteGroup.items.forEach((athlete: any) => {
                     if (athlete.fullName || athlete.displayName) {
-                      this.players.push({
-                        id: `${sport}_${athlete.id}`,
-                        name: athlete.fullName || athlete.displayName || '',
-                        firstName: athlete.firstName || '',
-                        lastName: athlete.lastName || '',
-                        team: rosterData.team?.displayName || 'Unknown Team',
-                        teamAbbr: rosterData.team?.abbreviation || '',
-                        position: athlete.position?.name || athlete.position?.abbreviation || 'N/A',
-                        sport: sport,
-                        headshot: athlete.headshot?.href || '',
-                        searchTerms: this.createSearchTerms(
-                          athlete.fullName || athlete.displayName || '', 
-                          athlete.firstName || '', 
-                          athlete.lastName || ''
-                        )
-                      });
-                      sportPlayerCount++;
+                      // Check if this player already exists in manual overrides
+                      const existingPlayer = this.players.find(p => 
+                        p.name.toLowerCase() === (athlete.fullName || athlete.displayName || '').toLowerCase() &&
+                        p.team.toLowerCase().includes(rosterData.team?.displayName?.toLowerCase() || '')
+                      );
+                      
+                      if (!existingPlayer) {
+                        this.players.push({
+                          id: `${sport}_${athlete.id}`,
+                          name: athlete.fullName || athlete.displayName || '',
+                          firstName: athlete.firstName || '',
+                          lastName: athlete.lastName || '',
+                          team: rosterData.team?.displayName || 'Unknown Team',
+                          teamAbbr: rosterData.team?.abbreviation || '',
+                          position: athlete.position?.name || athlete.position?.abbreviation || 'N/A',
+                          sport: sport,
+                          headshot: athlete.headshot?.href || '',
+                          searchTerms: this.createSearchTerms(
+                            athlete.fullName || athlete.displayName || '', 
+                            athlete.firstName || '', 
+                            athlete.lastName || ''
+                          )
+                        });
+                        sportPlayerCount++;
+                      }
                     }
                   });
                 }
@@ -121,7 +139,7 @@ class FreePlayerDatabase {
     }
 
     this.isLoaded = true;
-    console.log(`Total players loaded: ${this.players.length}`);
+    console.log(`Total players loaded: ${this.players.length} (including ${MANUAL_PLAYER_OVERRIDES.length} manual overrides)`);
     return this.players;
   }
 
@@ -132,9 +150,8 @@ class FreePlayerDatabase {
     
     if (firstName && lastName) {
       terms.push(`${firstName} ${lastName}`.toLowerCase());
-      terms.push(lastName.toLowerCase()); // Just last name
+      terms.push(lastName.toLowerCase());
       
-      // Add common nickname patterns
       if (firstName === 'Anthony') {
         terms.push(`ant ${lastName}`.toLowerCase());
         terms.push(`tony ${lastName}`.toLowerCase());
