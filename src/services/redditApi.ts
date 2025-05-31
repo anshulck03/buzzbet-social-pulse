@@ -1,4 +1,3 @@
-
 const REDDIT_CLIENT_ID = '-7EV03N1xVXY3vda_h_Dzw';
 const REDDIT_CLIENT_SECRET = 'jat9LYjzT_G52kMIpPcTIUdLIqBdhA';
 
@@ -31,6 +30,8 @@ const SPORT_SUBREDDITS = {
   mlb: ['baseball', 'fantasybaseball'],
   general: ['sports']
 };
+
+import { getPlayerByName } from '@/data/playersDatabase';
 
 class RedditApiService {
   private accessToken: string | null = null;
@@ -148,24 +149,56 @@ class RedditApiService {
     try {
       console.log(`Searching Reddit for: ${playerName}`);
       
-      // Search all sports subreddits
-      const allSubreddits = [
-        ...SPORT_SUBREDDITS.nba,
-        ...SPORT_SUBREDDITS.nfl,
-        ...SPORT_SUBREDDITS.mlb,
-        ...SPORT_SUBREDDITS.general
-      ];
+      // Get player data to determine sport and team subreddit
+      const playerData = getPlayerByName(playerName);
+      let subredditsToSearch: string[] = [];
+      
+      if (playerData) {
+        // Sport-specific subreddits
+        switch (playerData.sport) {
+          case 'NBA':
+            subredditsToSearch = [...SPORT_SUBREDDITS.nba];
+            break;
+          case 'NFL':
+            subredditsToSearch = [...SPORT_SUBREDDITS.nfl];
+            break;
+          case 'MLB':
+            subredditsToSearch = [...SPORT_SUBREDDITS.mlb];
+            break;
+        }
+        
+        // Add team-specific subreddit if available
+        if (playerData.teamSubreddit) {
+          subredditsToSearch.push(playerData.teamSubreddit);
+        }
+      } else {
+        // Search all sports if player not in database
+        subredditsToSearch = [
+          ...SPORT_SUBREDDITS.nba,
+          ...SPORT_SUBREDDITS.nfl,
+          ...SPORT_SUBREDDITS.mlb,
+          ...SPORT_SUBREDDITS.general
+        ];
+      }
       
       const allPosts: RedditPost[] = [];
       const searchedSubreddits: string[] = [];
       
-      // Search each subreddit
-      for (const subreddit of allSubreddits) {
+      // Search each relevant subreddit
+      for (const subreddit of subredditsToSearch) {
         try {
-          const posts = await this.getSubredditPosts(subreddit, playerName, 5);
+          const posts = await this.getSubredditPosts(subreddit, playerName, 8);
           if (posts.length > 0) {
-            allPosts.push(...posts);
-            searchedSubreddits.push(subreddit);
+            // Filter posts to only include those that actually mention the player
+            const relevantPosts = posts.filter(post => 
+              post.title.toLowerCase().includes(playerName.toLowerCase()) ||
+              (post.selftext && post.selftext.toLowerCase().includes(playerName.toLowerCase()))
+            );
+            
+            if (relevantPosts.length > 0) {
+              allPosts.push(...relevantPosts);
+              searchedSubreddits.push(subreddit);
+            }
           }
         } catch (error) {
           console.warn(`Failed to search r/${subreddit}:`, error);
@@ -177,12 +210,16 @@ class RedditApiService {
         index === self.findIndex(p => p.id === post.id)
       ).sort((a, b) => b.score - a.score);
       
-      // Get comments from top posts
+      // Get comments from top posts that mention the player
       const comments: RedditComment[] = [];
-      for (const post of uniquePosts.slice(0, 3)) {
+      for (const post of uniquePosts.slice(0, 5)) {
         try {
-          const postComments = await this.getPostComments(post.id, 25);
-          comments.push(...postComments);
+          const postComments = await this.getPostComments(post.id, 30);
+          // Filter comments to only include those mentioning the player
+          const relevantComments = postComments.filter(comment =>
+            comment.body.toLowerCase().includes(playerName.toLowerCase())
+          );
+          comments.push(...relevantComments);
         } catch (error) {
           console.warn(`Failed to get comments for post ${post.id}:`, error);
         }

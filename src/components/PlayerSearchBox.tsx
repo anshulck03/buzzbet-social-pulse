@@ -1,21 +1,29 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Star } from 'lucide-react';
+import { Search, Star, User } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { searchPlayers, Player } from '@/data/playersDatabase';
 
-const PlayerSearchBox = ({ onPlayerSelect, value }) => {
+interface PlayerSearchBoxProps {
+  onPlayerSelect: (player: { name: string; playerData?: Player }) => void;
+  value: { name: string; playerData?: Player } | null;
+}
+
+const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
   const [searchTerm, setSearchTerm] = useState(value?.name || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestions, setSuggestions] = useState<Player[]>([]);
   const [recentSearches] = useState([
-    'LeBron James', 'Tom Brady', 'Aaron Judge', 'Stephen Curry', 'Patrick Mahomes', 'Mookie Betts'
+    'LeBron James', 'Patrick Mahomes', 'Aaron Judge', 'Stephen Curry', 'Josh Allen', 'Mike Trout'
   ]);
 
-  const inputRef = useRef(null);
+  const inputRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (inputRef.current && !inputRef.current.contains(event.target)) {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
       }
     };
@@ -24,26 +32,46 @@ const PlayerSearchBox = ({ onPlayerSelect, value }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handlePlayerClick = (playerName) => {
+  const handlePlayerClick = (playerName: string, playerData?: Player) => {
     setSearchTerm(playerName);
     setShowSuggestions(false);
-    // Create a generic player object for any name
-    onPlayerSelect({ name: playerName });
+    onPlayerSelect({ name: playerName, playerData });
   };
 
-  const handleInputChange = (e) => {
-    setSearchTerm(e.target.value);
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const newValue = e.target.value;
+    setSearchTerm(newValue);
     setShowSuggestions(true);
+    
+    if (newValue.length >= 2) {
+      const results = searchPlayers(newValue);
+      setSuggestions(results);
+    } else {
+      setSuggestions([]);
+    }
   };
 
   const handleInputFocus = () => {
     setShowSuggestions(true);
+    if (searchTerm.length >= 2) {
+      const results = searchPlayers(searchTerm);
+      setSuggestions(results);
+    }
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm.trim()) {
       handlePlayerClick(searchTerm.trim());
+    }
+  };
+
+  const getSportColor = (sport: string) => {
+    switch (sport) {
+      case 'NBA': return 'text-orange-400 border-orange-400';
+      case 'NFL': return 'text-green-400 border-green-400';
+      case 'MLB': return 'text-blue-400 border-blue-400';
+      default: return 'text-slate-400 border-slate-400';
     }
   };
 
@@ -66,6 +94,36 @@ const PlayerSearchBox = ({ onPlayerSelect, value }) => {
       {showSuggestions && (
         <Card className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border-slate-600 z-50 max-h-96 overflow-y-auto">
           <CardContent className="p-0">
+            {/* Autocomplete suggestions */}
+            {searchTerm.length >= 2 && suggestions.length > 0 && (
+              <div className="p-4 border-b border-slate-700">
+                <p className="text-sm text-slate-400 mb-3 flex items-center">
+                  <User className="w-4 h-4 mr-2" />
+                  Player Suggestions
+                </p>
+                {suggestions.map((player, index) => (
+                  <button
+                    key={index}
+                    onClick={() => handlePlayerClick(player.name, player)}
+                    className="block w-full text-left p-3 hover:bg-slate-700 rounded mb-2 border border-slate-600"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-white font-medium">{player.name}</p>
+                        <p className="text-sm text-slate-400">
+                          {player.position} • {player.team}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className={`text-xs ${getSportColor(player.sport)}`}>
+                        {player.sport}
+                      </Badge>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Recent searches when no input */}
             {searchTerm === '' && (
               <div className="p-4">
                 <p className="text-sm text-slate-400 mb-3 flex items-center">
@@ -83,12 +141,13 @@ const PlayerSearchBox = ({ onPlayerSelect, value }) => {
                 ))}
                 <div className="mt-4 p-3 bg-slate-900/50 rounded-lg">
                   <p className="text-xs text-slate-500">
-                    💡 Tip: You can search for any professional athlete from NBA, NFL, or MLB
+                    💡 Tip: Start typing any player name for autocomplete suggestions
                   </p>
                 </div>
               </div>
             )}
             
+            {/* Search any name option */}
             {searchTerm !== '' && (
               <div className="p-4">
                 <button

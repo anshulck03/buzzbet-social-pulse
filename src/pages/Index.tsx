@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Search, TrendingUp, TrendingDown, AlertTriangle, Activity, Users, Eye, MessageCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -9,12 +8,13 @@ import PlayerSearchBox from '@/components/PlayerSearchBox';
 import SentimentDashboard from '@/components/SentimentDashboard';
 import InsightFeed from '@/components/InsightFeed';
 import TrendingSection from '@/components/TrendingSection';
+import { Player } from '@/data/playersDatabase';
 
 const Index = () => {
-  const [selectedPlayer, setSelectedPlayer] = useState(null);
+  const [selectedPlayer, setSelectedPlayer] = useState<{ name: string; playerData?: Player } | null>(null);
   const [searchResults, setSearchResults] = useState(false);
 
-  const handlePlayerSelect = (player) => {
+  const handlePlayerSelect = (player: { name: string; playerData?: Player }) => {
     setSelectedPlayer(player);
     setSearchResults(true);
   };
