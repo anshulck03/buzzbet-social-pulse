@@ -9,7 +9,7 @@ interface GeminiPostAnalysis {
   reliability: 'confirmed' | 'rumor' | 'speculation';
 }
 
-interface GeminiSummaryAnalysis {
+export interface GeminiSummaryAnalysis {
   overallSentiment: string;
   keyTrends: string[];
   riskFactors: string[];
