@@ -1,3 +1,4 @@
+
 export interface ESPNPlayer {
   id: string;
   name: string;
@@ -28,14 +29,7 @@ class FreePlayerDatabase {
   }
 
   private async fetchAllPlayers(): Promise<ESPNPlayer[]> {
-    const sportConfigs = [
-      { sport: 'NBA' as const, sportPath: 'basketball/nba' },
-      { sport: 'NFL' as const, sportPath: 'football/nfl' },
-      { sport: 'MLB' as const, sportPath: 'baseball/mlb' },
-      { sport: 'NHL' as const, sportPath: 'hockey/nhl' }
-    ];
-
-    console.log('Loading players from ESPN team rosters...');
+    console.log('Loading players from ESPN APIs...');
 
     // Add manual overrides first
     this.players = MANUAL_PLAYER_OVERRIDES.map(player => ({
@@ -45,102 +39,171 @@ class FreePlayerDatabase {
 
     console.log(`Added ${MANUAL_PLAYER_OVERRIDES.length} manual player overrides`);
 
-    for (const { sport, sportPath } of sportConfigs) {
-      console.log(`Loading ${sport} players...`);
+    // Direct athlete endpoints (primary method)
+    const athleteEndpoints = [
+      { sport: 'NFL' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/athletes' },
+      { sport: 'NBA' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/athletes' },
+      { sport: 'NHL' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/hockey/nhl/athletes' },
+      { sport: 'MLB' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/baseball/mlb/athletes' }
+    ];
+
+    // Try direct athlete endpoints first
+    for (const endpoint of athleteEndpoints) {
+      console.log(`Loading ${endpoint.sport} players from athlete endpoint...`);
       let sportPlayerCount = 0;
 
       try {
-        // First, get all team IDs for this sport
-        const teamsUrl = `https://site.api.espn.com/apis/site/v2/sports/${sportPath}/teams`;
-        const teamsResponse = await fetch(teamsUrl);
+        const response = await fetch(endpoint.url);
         
-        if (!teamsResponse.ok) {
-          console.warn(`Failed to load ${sport} teams: ${teamsResponse.status}`);
+        if (!response.ok) {
+          console.warn(`Failed to load ${endpoint.sport} athletes from direct endpoint: ${response.status}, falling back to team rosters`);
+          await this.loadSportFromTeamRosters(endpoint.sport);
           continue;
         }
 
-        const teamsData = await teamsResponse.json();
+        const data = await response.json();
         
-        // Extract team IDs from sports[0].leagues[0].teams[*].team.id
-        const teamIds: number[] = [];
-        if (teamsData.sports?.[0]?.leagues?.[0]?.teams) {
-          teamsData.sports[0].leagues[0].teams.forEach((teamObj: any) => {
-            if (teamObj.team?.id) {
-              teamIds.push(parseInt(teamObj.team.id));
+        if (data.athletes && Array.isArray(data.athletes)) {
+          data.athletes.forEach((athlete: any) => {
+            if (athlete.displayName || athlete.fullName) {
+              // Check if this player already exists in manual overrides
+              const existingPlayer = this.players.find(p => 
+                p.name.toLowerCase() === (athlete.displayName || athlete.fullName || '').toLowerCase() &&
+                p.sport === endpoint.sport
+              );
+              
+              if (!existingPlayer) {
+                this.players.push({
+                  id: `${endpoint.sport}_${athlete.id}`,
+                  name: athlete.displayName || athlete.fullName || '',
+                  firstName: athlete.firstName || '',
+                  lastName: athlete.lastName || '',
+                  team: athlete.team?.displayName || athlete.team?.name || 'Unknown Team',
+                  teamAbbr: athlete.team?.abbreviation || '',
+                  position: athlete.position?.displayName || athlete.position?.name || athlete.position?.abbreviation || 'N/A',
+                  sport: endpoint.sport,
+                  headshot: athlete.headshot?.href || '',
+                  searchTerms: this.createSearchTerms(
+                    athlete.displayName || athlete.fullName || '', 
+                    athlete.firstName || '', 
+                    athlete.lastName || ''
+                  )
+                });
+                sportPlayerCount++;
+              }
             }
           });
         }
-
-        console.log(`Found ${teamIds.length} ${sport} teams`);
-
-        // Now fetch roster for each team
-        for (const teamId of teamIds) {
-          try {
-            const rosterUrl = `https://site.api.espn.com/apis/site/v2/sports/${sportPath}/teams/${teamId}/roster`;
-            const rosterResponse = await fetch(rosterUrl);
-            
-            if (!rosterResponse.ok) {
-              console.warn(`Failed to load ${sport} team ${teamId} roster: ${rosterResponse.status}`);
-              continue;
-            }
-
-            const rosterData = await rosterResponse.json();
-            
-            // Handle nested structure: athletes[*].items[*]
-            if (rosterData.athletes && Array.isArray(rosterData.athletes)) {
-              rosterData.athletes.forEach((athleteGroup: any) => {
-                if (athleteGroup.items && Array.isArray(athleteGroup.items)) {
-                  athleteGroup.items.forEach((athlete: any) => {
-                    if (athlete.fullName || athlete.displayName) {
-                      // Check if this player already exists in manual overrides
-                      const existingPlayer = this.players.find(p => 
-                        p.name.toLowerCase() === (athlete.fullName || athlete.displayName || '').toLowerCase() &&
-                        p.team.toLowerCase().includes(rosterData.team?.displayName?.toLowerCase() || '')
-                      );
-                      
-                      if (!existingPlayer) {
-                        this.players.push({
-                          id: `${sport}_${athlete.id}`,
-                          name: athlete.fullName || athlete.displayName || '',
-                          firstName: athlete.firstName || '',
-                          lastName: athlete.lastName || '',
-                          team: rosterData.team?.displayName || 'Unknown Team',
-                          teamAbbr: rosterData.team?.abbreviation || '',
-                          position: athlete.position?.name || athlete.position?.abbreviation || 'N/A',
-                          sport: sport,
-                          headshot: athlete.headshot?.href || '',
-                          searchTerms: this.createSearchTerms(
-                            athlete.fullName || athlete.displayName || '', 
-                            athlete.firstName || '', 
-                            athlete.lastName || ''
-                          )
-                        });
-                        sportPlayerCount++;
-                      }
-                    }
-                  });
-                }
-              });
-            }
-          } catch (error) {
-            console.warn(`Error loading ${sport} team ${teamId} roster:`, error);
-            // Continue with next team
-          }
-          
-          // Small delay to be respectful to ESPN's servers
-          await new Promise(resolve => setTimeout(resolve, 100));
-        }
         
-        console.log(`Loaded ${sportPlayerCount} ${sport} players from ${teamIds.length} teams`);
+        console.log(`Loaded ${sportPlayerCount} ${endpoint.sport} players from athlete endpoint`);
       } catch (error) {
-        console.error(`Error loading ${sport} teams:`, error);
-        // Continue with next sport
+        console.error(`Error loading ${endpoint.sport} athletes from direct endpoint:`, error);
+        console.log(`Falling back to team rosters for ${endpoint.sport}...`);
+        await this.loadSportFromTeamRosters(endpoint.sport);
       }
     }
 
     this.isLoaded = true;
     console.log(`Total players loaded: ${this.players.length} (including ${MANUAL_PLAYER_OVERRIDES.length} manual overrides)`);
     return this.players;
+  }
+
+  private async loadSportFromTeamRosters(sport: 'NBA' | 'NFL' | 'MLB' | 'NHL'): Promise<void> {
+    const sportConfigs = {
+      'NBA': { sportPath: 'basketball/nba' },
+      'NFL': { sportPath: 'football/nfl' },
+      'MLB': { sportPath: 'baseball/mlb' },
+      'NHL': { sportPath: 'hockey/nhl' }
+    };
+
+    const config = sportConfigs[sport];
+    let sportPlayerCount = 0;
+
+    try {
+      // Get all team IDs for this sport
+      const teamsUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.sportPath}/teams`;
+      const teamsResponse = await fetch(teamsUrl);
+      
+      if (!teamsResponse.ok) {
+        console.warn(`Failed to load ${sport} teams: ${teamsResponse.status}`);
+        return;
+      }
+
+      const teamsData = await teamsResponse.json();
+      
+      // Extract team IDs
+      const teamIds: number[] = [];
+      if (teamsData.sports?.[0]?.leagues?.[0]?.teams) {
+        teamsData.sports[0].leagues[0].teams.forEach((teamObj: any) => {
+          if (teamObj.team?.id) {
+            teamIds.push(parseInt(teamObj.team.id));
+          }
+        });
+      }
+
+      console.log(`Found ${teamIds.length} ${sport} teams for roster fallback`);
+
+      // Fetch roster for each team
+      for (const teamId of teamIds) {
+        try {
+          const rosterUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.sportPath}/teams/${teamId}/roster`;
+          const rosterResponse = await fetch(rosterUrl);
+          
+          if (!rosterResponse.ok) {
+            console.warn(`Failed to load ${sport} team ${teamId} roster: ${rosterResponse.status}`);
+            continue;
+          }
+
+          const rosterData = await rosterResponse.json();
+          
+          // Handle nested structure: athletes[*].items[*]
+          if (rosterData.athletes && Array.isArray(rosterData.athletes)) {
+            rosterData.athletes.forEach((athleteGroup: any) => {
+              if (athleteGroup.items && Array.isArray(athleteGroup.items)) {
+                athleteGroup.items.forEach((athlete: any) => {
+                  if (athlete.fullName || athlete.displayName) {
+                    // Check if this player already exists
+                    const existingPlayer = this.players.find(p => 
+                      p.name.toLowerCase() === (athlete.fullName || athlete.displayName || '').toLowerCase() &&
+                      p.sport === sport
+                    );
+                    
+                    if (!existingPlayer) {
+                      this.players.push({
+                        id: `${sport}_${athlete.id}`,
+                        name: athlete.fullName || athlete.displayName || '',
+                        firstName: athlete.firstName || '',
+                        lastName: athlete.lastName || '',
+                        team: rosterData.team?.displayName || 'Unknown Team',
+                        teamAbbr: rosterData.team?.abbreviation || '',
+                        position: athlete.position?.name || athlete.position?.abbreviation || 'N/A',
+                        sport: sport,
+                        headshot: athlete.headshot?.href || '',
+                        searchTerms: this.createSearchTerms(
+                          athlete.fullName || athlete.displayName || '', 
+                          athlete.firstName || '', 
+                          athlete.lastName || ''
+                        )
+                      });
+                      sportPlayerCount++;
+                    }
+                  }
+                });
+              }
+            });
+          }
+        } catch (error) {
+          console.warn(`Error loading ${sport} team ${teamId} roster:`, error);
+        }
+        
+        // Small delay to respect ESPN's servers
+        await new Promise(resolve => setTimeout(resolve, 50));
+      }
+      
+      console.log(`Loaded ${sportPlayerCount} ${sport} players from team rosters (fallback)`);
+    } catch (error) {
+      console.error(`Error loading ${sport} team rosters:`, error);
+    }
   }
 
   private createSearchTerms(displayName: string, firstName: string, lastName: string): string[] {
@@ -152,34 +215,32 @@ class FreePlayerDatabase {
       terms.push(`${firstName} ${lastName}`.toLowerCase());
       terms.push(lastName.toLowerCase());
       
-      if (firstName === 'Anthony') {
-        terms.push(`ant ${lastName}`.toLowerCase());
-        terms.push(`tony ${lastName}`.toLowerCase());
-      }
-      if (firstName === 'Christopher') {
-        terms.push(`chris ${lastName}`.toLowerCase());
-      }
-      if (firstName === 'Alexander') {
-        terms.push(`alex ${lastName}`.toLowerCase());
-      }
-      if (firstName === 'Michael') {
-        terms.push(`mike ${lastName}`.toLowerCase());
-      }
-      if (firstName === 'William') {
-        terms.push(`bill ${lastName}`.toLowerCase());
-        terms.push(`will ${lastName}`.toLowerCase());
-      }
-      if (firstName === 'Robert') {
-        terms.push(`rob ${lastName}`.toLowerCase());
-        terms.push(`bob ${lastName}`.toLowerCase());
-      }
-      if (firstName === 'Richard') {
-        terms.push(`rick ${lastName}`.toLowerCase());
-        terms.push(`dick ${lastName}`.toLowerCase());
-      }
-      if (firstName === 'James') {
-        terms.push(`jim ${lastName}`.toLowerCase());
-        terms.push(`jimmy ${lastName}`.toLowerCase());
+      // Common nickname variations
+      const nicknameMap: Record<string, string[]> = {
+        'Anthony': ['ant', 'tony'],
+        'Christopher': ['chris'],
+        'Alexander': ['alex'],
+        'Michael': ['mike'],
+        'William': ['bill', 'will'],
+        'Robert': ['rob', 'bob'],
+        'Richard': ['rick', 'dick'],
+        'James': ['jim', 'jimmy'],
+        'Joseph': ['joe', 'joey'],
+        'Benjamin': ['ben', 'benny'],
+        'Matthew': ['matt'],
+        'Andrew': ['andy', 'drew'],
+        'Jonathan': ['jon', 'johnny'],
+        'Nicholas': ['nick'],
+        'Daniel': ['dan', 'danny'],
+        'David': ['dave', 'davey'],
+        'Joshua': ['josh'],
+        'Thomas': ['tom', 'tommy']
+      };
+
+      if (nicknameMap[firstName]) {
+        nicknameMap[firstName].forEach(nickname => {
+          terms.push(`${nickname} ${lastName}`.toLowerCase());
+        });
       }
     }
     
@@ -218,6 +279,11 @@ class FreePlayerDatabase {
       }
     }
     
+    // Boost score for manual overrides (they're likely more accurate/current)
+    if (player.id.startsWith('manual_')) {
+      score += 10;
+    }
+    
     return score;
   }
 
@@ -231,6 +297,14 @@ class FreePlayerDatabase {
 
   getPlayerCount(): number {
     return this.players.length;
+  }
+
+  // Refresh player data (can be called periodically)
+  async refreshPlayers(): Promise<ESPNPlayer[]> {
+    this.isLoaded = false;
+    this.loadingPromise = null;
+    this.players = [];
+    return this.loadAllPlayers();
   }
 }
 
@@ -306,7 +380,7 @@ export function getTeamSubreddit(teamName: string, sport: string): string | null
     'San Francisco 49ers': '49ers',
     'Seattle Seahawks': 'seahawks',
     
-    // MLB teams (major ones)
+    // MLB teams
     'New York Yankees': 'nyyankees',
     'Boston Red Sox': 'redsox',
     'Los Angeles Dodgers': 'dodgers',
@@ -336,7 +410,41 @@ export function getTeamSubreddit(teamName: string, sport: string): string | null
     'Chicago White Sox': 'whitesox',
     'Colorado Rockies': 'coloradorockies',
     'Arizona Diamondbacks': 'azdiamondbacks',
-    'San Diego Padres': 'padres'
+    'San Diego Padres': 'padres',
+    
+    // NHL teams
+    'Boston Bruins': 'bostonbruins',
+    'Buffalo Sabres': 'sabres',
+    'Detroit Red Wings': 'detroitredwings',
+    'Florida Panthers': 'floridapanthers',
+    'Montreal Canadiens': 'habs',
+    'Ottawa Senators': 'ottawasenators',
+    'Tampa Bay Lightning': 'tampabaylightning',
+    'Toronto Maple Leafs': 'leafs',
+    'Carolina Hurricanes': 'canes',
+    'Columbus Blue Jackets': 'bluejackets',
+    'New Jersey Devils': 'devils',
+    'New York Islanders': 'newyorkislanders',
+    'New York Rangers': 'rangers',
+    'Philadelphia Flyers': 'flyers',
+    'Pittsburgh Penguins': 'penguins',
+    'Washington Capitals': 'caps',
+    'Chicago Blackhawks': 'hawks',
+    'Colorado Avalanche': 'coloradoavalanche',
+    'Dallas Stars': 'dallasstars',
+    'Minnesota Wild': 'wildhockey',
+    'Nashville Predators': 'predators',
+    'St. Louis Blues': 'stlouisblues',
+    'Winnipeg Jets': 'winnipegjets',
+    'Anaheim Ducks': 'anaheimducks',
+    'Arizona Coyotes': 'coyotes',
+    'Calgary Flames': 'calgaryflames',
+    'Edmonton Oilers': 'edmontonoilers',
+    'Los Angeles Kings': 'losangeleskings',
+    'San Jose Sharks': 'sanjosesharks',
+    'Seattle Kraken': 'seattlekraken',
+    'Vancouver Canucks': 'canucks',
+    'Vegas Golden Knights': 'goldenknights'
   };
   
   return teamSubreddits[teamName] || null;
