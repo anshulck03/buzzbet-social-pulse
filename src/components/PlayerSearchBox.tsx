@@ -38,16 +38,12 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
   const findPlayerData = async (playerName: string): Promise<ESPNPlayer | undefined> => {
     console.log('Searching for player data:', playerName);
     try {
-      // Ensure the database is loaded first
       await espnPlayerDB.loadAllPlayers();
-      
-      // Use the searchPlayers method which exists
       const searchResults = espnPlayerDB.searchPlayers(playerName, 1);
       if (searchResults.length > 0) {
         console.log('Found player:', searchResults[0]);
         return searchResults[0];
       }
-
       console.log('No player data found for:', playerName);
       return undefined;
     } catch (error) {
@@ -78,34 +74,40 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
     setShowSuggestions(value.length > 0);
   };
 
-  const handleSuggestionClick = async (suggestion: string) => {
-    console.log('Suggestion clicked:', suggestion);
-    console.log('About to call onPlayerSelect from suggestion click');
+  const handleSuggestionClick = async (e: React.MouseEvent, suggestion: string) => {
+    // Prevent event bubbling and default behavior
+    e.preventDefault();
+    e.stopPropagation();
     
-    // Update the query immediately
+    console.log('Suggestion clicked:', suggestion);
+    console.log('Event prevented and stopped');
+    
+    // Update UI immediately
     setQuery(suggestion);
     setShowSuggestions(false);
     
-    // Find player data and call onPlayerSelect
     try {
+      // Find player data
+      console.log('Finding player data for suggestion:', suggestion);
       const playerData = await findPlayerData(suggestion);
+      
       const player = { 
         name: suggestion, 
         playerData 
       };
-      console.log('Suggestion click - calling onPlayerSelect with:', player);
-      console.log('onPlayerSelect function:', onPlayerSelect);
       
-      // Call onPlayerSelect and ensure it's processed
+      console.log('Suggestion - calling onPlayerSelect with:', player);
+      
+      // Call onPlayerSelect immediately
       onPlayerSelect(player);
       
-      // Also trigger onSearch if provided
+      // Also call onSearch if provided
       if (onSearch) {
-        console.log('Also calling onSearch with:', suggestion);
+        console.log('Also calling onSearch');
         onSearch(suggestion);
       }
       
-      console.log('Suggestion click processing complete');
+      console.log('Suggestion processing complete');
     } catch (error) {
       console.error('Error in suggestion click:', error);
     }
@@ -155,11 +157,9 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
             {filteredSuggestions.slice(0, 6).map((suggestion, index) => (
               <button
                 key={index}
-                onClick={() => {
-                  console.log('Button clicked for suggestion:', suggestion);
-                  handleSuggestionClick(suggestion);
-                }}
-                className="w-full px-4 py-2 text-left text-white hover:bg-slate-700 transition-colors"
+                type="button"
+                onMouseDown={(e) => handleSuggestionClick(e, suggestion)}
+                className="w-full px-4 py-2 text-left text-white hover:bg-slate-700 transition-colors focus:outline-none focus:bg-slate-700"
               >
                 {suggestion}
               </button>
