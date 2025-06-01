@@ -13,6 +13,7 @@ export interface ESPNPlayer {
 }
 
 import { MANUAL_PLAYER_OVERRIDES, ManualPlayer } from '@/data/manualPlayerOverrides';
+import { nbaImageService } from './nbaImageService';
 
 class FreePlayerDatabase {
   private players: ESPNPlayer[] = [];
@@ -30,10 +31,20 @@ class FreePlayerDatabase {
   private async fetchAllPlayers(): Promise<ESPNPlayer[]> {
     console.log('Loading players from ESPN APIs...');
 
-    // Add manual overrides first
-    this.players = MANUAL_PLAYER_OVERRIDES.map(player => ({
-      ...player,
-      searchTerms: this.createSearchTerms(player.name, player.firstName, player.lastName)
+    // Add manual overrides first with enhanced image handling
+    this.players = await Promise.all(MANUAL_PLAYER_OVERRIDES.map(async (player) => {
+      let headshot = player.headshot;
+      
+      // For NBA players without headshots, try to get images
+      if (player.sport === 'NBA' && !headshot) {
+        headshot = await nbaImageService.getImageForPlayer(player.id, player.name);
+      }
+
+      return {
+        ...player,
+        headshot,
+        searchTerms: this.createSearchTerms(player.name, player.firstName, player.lastName)
+      };
     }));
 
     console.log(`Added ${MANUAL_PLAYER_OVERRIDES.length} manual player overrides`);
@@ -50,7 +61,7 @@ class FreePlayerDatabase {
       { sport: 'MLB' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/baseball/mlb/athletes' }
     ];
 
-    // Try direct athlete endpoints first with enhanced NBA support
+    // Try direct athlete endpoints first with enhanced NBA image support
     for (const endpoint of athleteEndpoints) {
       console.log(`Loading ${endpoint.sport} players from athlete endpoint...`);
       let sportPlayerCount = 0;
@@ -72,7 +83,7 @@ class FreePlayerDatabase {
         });
         
         if (data.athletes && Array.isArray(data.athletes)) {
-          data.athletes.forEach((athlete: any) => {
+          for (const athlete of data.athletes) {
             if (athlete.displayName || athlete.fullName) {
               // Check if this player already exists in manual overrides
               const existingPlayer = this.players.find(p => 
@@ -81,6 +92,13 @@ class FreePlayerDatabase {
               );
               
               if (!existingPlayer) {
+                let headshot = athlete.headshot?.href || '';
+                
+                // For NBA players, enhance image handling
+                if (endpoint.sport === 'NBA' && !headshot && athlete.id) {
+                  headshot = await nbaImageService.getImageForPlayer(athlete.id, athlete.displayName || athlete.fullName || '');
+                }
+
                 this.players.push({
                   id: `${endpoint.sport}_${athlete.id}`,
                   name: athlete.displayName || athlete.fullName || '',
@@ -90,7 +108,7 @@ class FreePlayerDatabase {
                   teamAbbr: athlete.team?.abbreviation || '',
                   position: this.normalizePosition(athlete.position?.displayName || athlete.position?.name || athlete.position?.abbreviation || 'N/A', endpoint.sport),
                   sport: endpoint.sport,
-                  headshot: athlete.headshot?.href || '',
+                  headshot,
                   searchTerms: this.createSearchTerms(
                     athlete.displayName || athlete.fullName || '', 
                     athlete.firstName || '', 
@@ -100,10 +118,17 @@ class FreePlayerDatabase {
                 sportPlayerCount++;
               }
             }
-          });
+          }
         }
         
         console.log(`Loaded ${sportPlayerCount} ${endpoint.sport} players from athlete endpoint`);
+        
+        // Log image statistics for NBA
+        if (endpoint.sport === 'NBA') {
+          const nbaPlayersWithImages = this.players.filter(p => p.sport === 'NBA' && p.headshot).length;
+          const totalNBAPlayers = this.players.filter(p => p.sport === 'NBA').length;
+          console.log(`NBA players with images: ${nbaPlayersWithImages}/${totalNBAPlayers}`);
+        }
       } catch (error) {
         console.error(`Error loading ${endpoint.sport} athletes from direct endpoint:`, error);
         console.log(`Falling back to team rosters for ${endpoint.sport}...`);
@@ -126,6 +151,14 @@ class FreePlayerDatabase {
     
     console.log(`Total players loaded: ${totalPlayers}`);
     console.log(`Sport breakdown - NBA: ${nbaPlayers}, NFL: ${nflPlayers}, MLB: ${mlbPlayers}, NHL: ${nhlPlayers}`);
+    
+    // Log image coverage for each sport
+    const nbaWithImages = this.players.filter(p => p.sport === 'NBA' && p.headshot).length;
+    const nflWithImages = this.players.filter(p => p.sport === 'NFL' && p.headshot).length;
+    const mlbWithImages = this.players.filter(p => p.sport === 'MLB' && p.headshot).length;
+    const nhlWithImages = this.players.filter(p => p.sport === 'NHL' && p.headshot).length;
+    
+    console.log(`Images available - NBA: ${nbaWithImages}/${nbaPlayers}, NFL: ${nflWithImages}/${nflPlayers}, MLB: ${mlbWithImages}/${mlbPlayers}, NHL: ${nhlWithImages}/${nhlPlayers}`);
     
     return this.players;
   }
