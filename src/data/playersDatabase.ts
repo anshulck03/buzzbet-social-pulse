@@ -1,4 +1,5 @@
 
+
 export interface Player {
   name: string;
   team: string;
@@ -34,7 +35,7 @@ export const PLAYERS_DATABASE: Player[] = [
   { name: 'Zion Williamson', team: 'New Orleans Pelicans', position: 'PF', sport: 'NBA', teamSubreddit: 'nolapelicans' },
   { name: 'Tyrese Haliburton', team: 'Indiana Pacers', position: 'PG', sport: 'NBA', teamSubreddit: 'pacers' },
   { name: 'Darius Garland', team: 'Cleveland Cavaliers', position: 'PG', sport: 'NBA', teamSubreddit: 'clevelandcavs' },
-  { name: 'De'Aaron Fox', team: 'Sacramento Kings', position: 'PG', sport: 'NBA', teamSubreddit: 'kings' },
+  { name: 'De\'Aaron Fox', team: 'Sacramento Kings', position: 'PG', sport: 'NBA', teamSubreddit: 'kings' },
   { name: 'Bam Adebayo', team: 'Miami Heat', position: 'C', sport: 'NBA', teamSubreddit: 'heat' },
   { name: 'Tyrese Maxey', team: 'Philadelphia 76ers', position: 'PG', sport: 'NBA', teamSubreddit: 'sixers' },
   { name: 'Karl-Anthony Towns', team: 'Minnesota Timberwolves', position: 'C', sport: 'NBA', teamSubreddit: 'timberwolves' },
@@ -55,7 +56,7 @@ export const PLAYERS_DATABASE: Player[] = [
   { name: 'Tyreek Hill', team: 'Miami Dolphins', position: 'WR', sport: 'NFL', teamSubreddit: 'miamidolphins' },
   { name: 'Justin Jefferson', team: 'Minnesota Vikings', position: 'WR', sport: 'NFL', teamSubreddit: 'minnesotavikings' },
   { name: 'CeeDee Lamb', team: 'Dallas Cowboys', position: 'WR', sport: 'NFL', teamSubreddit: 'cowboys' },
-  { name: 'Ja'Marr Chase', team: 'Cincinnati Bengals', position: 'WR', sport: 'NFL', teamSubreddit: 'bengals' },
+  { name: 'Ja\'Marr Chase', team: 'Cincinnati Bengals', position: 'WR', sport: 'NFL', teamSubreddit: 'bengals' },
   { name: 'Brock Purdy', team: 'San Francisco 49ers', position: 'QB', sport: 'NFL', teamSubreddit: '49ers' },
   { name: 'Jalen Hurts', team: 'Philadelphia Eagles', position: 'QB', sport: 'NFL', teamSubreddit: 'eagles' },
   { name: 'Myles Garrett', team: 'Cleveland Browns', position: 'DE', sport: 'NFL', teamSubreddit: 'browns' },
@@ -152,3 +153,4 @@ export function getPlayerByName(name: string): Player | undefined {
     player.name.toLowerCase() === name.toLowerCase()
   );
 }
+
