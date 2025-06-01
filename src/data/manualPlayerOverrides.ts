@@ -13,6 +13,7 @@ export interface ManualPlayer {
 
 // Import NBA player overrides
 import { NBA_PLAYER_OVERRIDES } from './nbaPlayerOverrides';
+import { CSV_NBA_PLAYERS } from './csvNbaPlayers';
 
 // NFL player overrides (keeping existing ones for now)
 const NFL_PLAYER_OVERRIDES: ManualPlayer[] = [
@@ -91,5 +92,6 @@ const NFL_PLAYER_OVERRIDES: ManualPlayer[] = [
 // Combine all manual player overrides
 export const MANUAL_PLAYER_OVERRIDES: ManualPlayer[] = [
   ...NBA_PLAYER_OVERRIDES,
+  ...CSV_NBA_PLAYERS,
   ...NFL_PLAYER_OVERRIDES
 ];
