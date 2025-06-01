@@ -18,6 +18,25 @@ const InsightFeed = ({ player }: InsightFeedProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const formatPostDate = (timestamp: number) => {
+    const date = new Date(timestamp * 1000);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffHours < 1) {
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      return `${diffMins}m ago`;
+    } else if (diffHours < 24) {
+      return `${diffHours}h ago`;
+    } else if (diffDays < 7) {
+      return `${diffDays}d ago`;
+    } else {
+      return date.toLocaleDateString();
+    }
+  };
+
   console.log('InsightFeed player prop:', player);
   console.log('Player data exists:', !!player?.playerData);
 
@@ -165,9 +184,15 @@ const InsightFeed = ({ player }: InsightFeedProps) => {
               className="p-4 bg-slate-900/50 rounded-lg border border-slate-700 hover:border-slate-600 transition-colors"
             >
               <div className="flex items-start justify-between mb-2">
-                <Badge variant="outline" className="text-orange-400 border-orange-400 text-xs">
-                  r/{post.subreddit}
-                </Badge>
+                <div className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-orange-400 border-orange-400 text-xs">
+                    r/{post.subreddit}
+                  </Badge>
+                  <div className="flex items-center text-slate-500 text-xs">
+                    <Clock className="w-3 h-3 mr-1" />
+                    {formatPostDate(post.created_utc)}
+                  </div>
+                </div>
                 <div className="flex items-center text-slate-500 text-xs">
                   <TrendingUp className="w-3 h-3 mr-1" />
                   {post.score}
