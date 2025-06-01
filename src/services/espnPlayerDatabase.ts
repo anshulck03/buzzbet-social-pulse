@@ -29,13 +29,12 @@ class FreePlayerDatabase {
   }
 
   private async fetchAllPlayers(): Promise<ESPNPlayer[]> {
-    console.log('Loading players from ESPN APIs...');
+    console.log('Loading comprehensive player database from ESPN APIs...');
 
-    // Add manual overrides first with enhanced image handling
+    // Start with manual overrides
     this.players = await Promise.all(MANUAL_PLAYER_OVERRIDES.map(async (player) => {
       let headshot = player.headshot;
       
-      // For NBA players without headshots, try to get images
       if (player.sport === 'NBA' && !headshot) {
         headshot = await nbaImageService.getImageForPlayer(player.id, player.name);
       }
@@ -48,140 +47,123 @@ class FreePlayerDatabase {
     }));
 
     console.log(`Added ${MANUAL_PLAYER_OVERRIDES.length} manual player overrides`);
-    
-    // Count NBA players in manual overrides
-    const nbaManualCount = MANUAL_PLAYER_OVERRIDES.filter(p => p.sport === 'NBA').length;
-    console.log(`NBA manual overrides: ${nbaManualCount}`);
 
-    // Direct athlete endpoints (primary method)
-    const athleteEndpoints = [
-      { sport: 'NBA' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/athletes' },
-      { sport: 'NFL' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/athletes' },
-      { sport: 'NHL' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/hockey/nhl/athletes' },
-      { sport: 'MLB' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/baseball/mlb/athletes' }
+    // Load players from all sports using multiple API endpoints
+    const sports = [
+      { name: 'NBA', path: 'basketball/nba' },
+      { name: 'NFL', path: 'football/nfl' },
+      { name: 'MLB', path: 'baseball/mlb' },
+      { name: 'NHL', path: 'hockey/nhl' }
     ];
 
-    // Try direct athlete endpoints first with enhanced NBA image support
-    for (const endpoint of athleteEndpoints) {
-      console.log(`Loading ${endpoint.sport} players from athlete endpoint...`);
-      let sportPlayerCount = 0;
-
-      try {
-        const response = await fetch(endpoint.url);
-        
-        if (!response.ok) {
-          console.warn(`Failed to load ${endpoint.sport} athletes from direct endpoint: ${response.status}, falling back to team rosters`);
-          await this.loadSportFromTeamRosters(endpoint.sport);
-          continue;
-        }
-
-        const data = await response.json();
-        console.log(`${endpoint.sport} API response structure:`, {
-          hasAthletes: !!data.athletes,
-          athletesLength: data.athletes?.length || 0,
-          sampleAthlete: data.athletes?.[0] || null
-        });
-        
-        if (data.athletes && Array.isArray(data.athletes)) {
-          for (const athlete of data.athletes) {
-            if (athlete.displayName || athlete.fullName) {
-              // Check if this player already exists in manual overrides
-              const existingPlayer = this.players.find(p => 
-                p.name.toLowerCase() === (athlete.displayName || athlete.fullName || '').toLowerCase() &&
-                p.sport === endpoint.sport
-              );
-              
-              if (!existingPlayer) {
-                let headshot = athlete.headshot?.href || '';
-                
-                // For NBA players, enhance image handling
-                if (endpoint.sport === 'NBA' && !headshot && athlete.id) {
-                  headshot = await nbaImageService.getImageForPlayer(athlete.id, athlete.displayName || athlete.fullName || '');
-                }
-
-                this.players.push({
-                  id: `${endpoint.sport}_${athlete.id}`,
-                  name: athlete.displayName || athlete.fullName || '',
-                  firstName: athlete.firstName || '',
-                  lastName: athlete.lastName || '',
-                  team: athlete.team?.displayName || athlete.team?.name || 'Unknown Team',
-                  teamAbbr: athlete.team?.abbreviation || '',
-                  position: this.normalizePosition(athlete.position?.displayName || athlete.position?.name || athlete.position?.abbreviation || 'N/A', endpoint.sport),
-                  sport: endpoint.sport,
-                  headshot,
-                  searchTerms: this.createSearchTerms(
-                    athlete.displayName || athlete.fullName || '', 
-                    athlete.firstName || '', 
-                    athlete.lastName || ''
-                  )
-                });
-                sportPlayerCount++;
-              }
-            }
-          }
-        }
-        
-        console.log(`Loaded ${sportPlayerCount} ${endpoint.sport} players from athlete endpoint`);
-        
-        // Log image statistics for NBA
-        if (endpoint.sport === 'NBA') {
-          const nbaPlayersWithImages = this.players.filter(p => p.sport === 'NBA' && p.headshot).length;
-          const totalNBAPlayers = this.players.filter(p => p.sport === 'NBA').length;
-          console.log(`NBA players with images: ${nbaPlayersWithImages}/${totalNBAPlayers}`);
-        }
-      } catch (error) {
-        console.error(`Error loading ${endpoint.sport} athletes from direct endpoint:`, error);
-        console.log(`Falling back to team rosters for ${endpoint.sport}...`);
-        await this.loadSportFromTeamRosters(endpoint.sport);
-      }
-    }
-
-    // Additional NBA-specific API calls to ensure complete coverage
-    if (this.getPlayersBySport('NBA').length < 400) {
-      console.log('NBA player count seems low, trying additional NBA endpoints...');
-      await this.loadAdditionalNBAPlayers();
+    for (const sport of sports) {
+      console.log(`Loading ${sport.name} players...`);
+      await this.loadSportPlayers(sport.name as 'NBA' | 'NFL' | 'MLB' | 'NHL', sport.path);
     }
 
     this.isLoaded = true;
     const totalPlayers = this.players.length;
-    const nbaPlayers = this.getPlayersBySport('NBA').length;
-    const nflPlayers = this.getPlayersBySport('NFL').length;
-    const mlbPlayers = this.getPlayersBySport('MLB').length;
-    const nhlPlayers = this.getPlayersBySport('NHL').length;
+    const sportCounts = sports.map(sport => ({
+      sport: sport.name,
+      count: this.getPlayersBySport(sport.name).length
+    }));
     
     console.log(`Total players loaded: ${totalPlayers}`);
-    console.log(`Sport breakdown - NBA: ${nbaPlayers}, NFL: ${nflPlayers}, MLB: ${mlbPlayers}, NHL: ${nhlPlayers}`);
-    
-    // Log image coverage for each sport
-    const nbaWithImages = this.players.filter(p => p.sport === 'NBA' && p.headshot).length;
-    const nflWithImages = this.players.filter(p => p.sport === 'NFL' && p.headshot).length;
-    const mlbWithImages = this.players.filter(p => p.sport === 'MLB' && p.headshot).length;
-    const nhlWithImages = this.players.filter(p => p.sport === 'NHL' && p.headshot).length;
-    
-    console.log(`Images available - NBA: ${nbaWithImages}/${nbaPlayers}, NFL: ${nflWithImages}/${nflPlayers}, MLB: ${mlbWithImages}/${mlbPlayers}, NHL: ${nhlWithImages}/${nhlPlayers}`);
+    sportCounts.forEach(({ sport, count }) => {
+      console.log(`${sport}: ${count} players`);
+    });
     
     return this.players;
   }
 
-  private async loadAdditionalNBAPlayers(): Promise<void> {
-    console.log('Loading additional NBA players from team rosters...');
-    let additionalNBACount = 0;
+  private async loadSportPlayers(sport: 'NBA' | 'NFL' | 'MLB' | 'NHL', sportPath: string): Promise<void> {
+    let sportPlayerCount = 0;
 
     try {
-      // Get all NBA team IDs
-      const teamsUrl = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams';
+      // Method 1: Try direct athlete endpoint
+      const athleteUrl = `https://site.web.api.espn.com/apis/site/v2/sports/${sportPath}/athletes?limit=1000`;
+      console.log(`Trying direct athlete endpoint for ${sport}: ${athleteUrl}`);
+      
+      try {
+        const athleteResponse = await fetch(athleteUrl);
+        if (athleteResponse.ok) {
+          const athleteData = await athleteResponse.json();
+          if (athleteData.athletes && Array.isArray(athleteData.athletes)) {
+            for (const athlete of athleteData.athletes) {
+              if (this.addPlayerFromAthleteData(athlete, sport)) {
+                sportPlayerCount++;
+              }
+            }
+            console.log(`Loaded ${sportPlayerCount} ${sport} players from direct athlete endpoint`);
+            return; // Success, skip team rosters
+          }
+        }
+      } catch (error) {
+        console.warn(`Direct athlete endpoint failed for ${sport}:`, error);
+      }
+
+      // Method 2: Load from team rosters (fallback)
+      console.log(`Loading ${sport} players from team rosters...`);
+      sportPlayerCount = await this.loadFromTeamRosters(sport, sportPath);
+      console.log(`Loaded ${sportPlayerCount} ${sport} players from team rosters`);
+
+    } catch (error) {
+      console.error(`Error loading ${sport} players:`, error);
+      
+      // Method 3: Hardcode some popular players as last resort
+      await this.loadPopularPlayersForSport(sport);
+    }
+  }
+
+  private addPlayerFromAthleteData(athlete: any, sport: 'NBA' | 'NFL' | 'MLB' | 'NHL'): boolean {
+    const name = athlete.displayName || athlete.fullName || athlete.name;
+    if (!name) return false;
+
+    // Check if player already exists
+    const existingPlayer = this.players.find(p => 
+      p.name.toLowerCase() === name.toLowerCase() && p.sport === sport
+    );
+    if (existingPlayer) return false;
+
+    let headshot = athlete.headshot?.href || '';
+    
+    // For NBA players, try to get better images
+    if (sport === 'NBA' && !headshot && athlete.id) {
+      // We'll handle this async later if needed
+    }
+
+    this.players.push({
+      id: `${sport}_${athlete.id || Date.now()}`,
+      name,
+      firstName: athlete.firstName || '',
+      lastName: athlete.lastName || '',
+      team: athlete.team?.displayName || athlete.team?.name || 'Unknown Team',
+      teamAbbr: athlete.team?.abbreviation || '',
+      position: this.normalizePosition(athlete.position?.displayName || athlete.position?.name || athlete.position?.abbreviation || 'N/A', sport),
+      sport,
+      headshot,
+      searchTerms: this.createSearchTerms(name, athlete.firstName || '', athlete.lastName || '')
+    });
+
+    return true;
+  }
+
+  private async loadFromTeamRosters(sport: 'NBA' | 'NFL' | 'MLB' | 'NHL', sportPath: string): Promise<number> {
+    let sportPlayerCount = 0;
+
+    try {
+      // Get teams
+      const teamsUrl = `https://site.api.espn.com/apis/site/v2/sports/${sportPath}/teams`;
       const teamsResponse = await fetch(teamsUrl);
       
       if (!teamsResponse.ok) {
-        console.warn(`Failed to load NBA teams: ${teamsResponse.status}`);
-        return;
+        console.warn(`Failed to load ${sport} teams: ${teamsResponse.status}`);
+        return sportPlayerCount;
       }
 
       const teamsData = await teamsResponse.json();
-      console.log('NBA teams API response:', teamsData);
-      
-      // Extract team IDs
       const teamIds: number[] = [];
+      
       if (teamsData.sports?.[0]?.leagues?.[0]?.teams) {
         teamsData.sports[0].leagues[0].teams.forEach((teamObj: any) => {
           if (teamObj.team?.id) {
@@ -190,74 +172,161 @@ class FreePlayerDatabase {
         });
       }
 
-      console.log(`Found ${teamIds.length} NBA teams for additional roster loading`);
+      console.log(`Found ${teamIds.length} ${sport} teams`);
 
-      // Fetch roster for each NBA team
-      for (const teamId of teamIds.slice(0, 30)) { // Limit to 30 teams max
+      // Load roster for each team
+      for (const teamId of teamIds) {
         try {
-          const rosterUrl = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/roster`;
+          const rosterUrl = `https://site.api.espn.com/apis/site/v2/sports/${sportPath}/teams/${teamId}/roster`;
           const rosterResponse = await fetch(rosterUrl);
           
-          if (!rosterResponse.ok) {
-            console.warn(`Failed to load NBA team ${teamId} roster: ${rosterResponse.status}`);
-            continue;
-          }
+          if (!rosterResponse.ok) continue;
 
           const rosterData = await rosterResponse.json();
           
-          // Handle nested structure: athletes[*].items[*]
           if (rosterData.athletes && Array.isArray(rosterData.athletes)) {
             rosterData.athletes.forEach((athleteGroup: any) => {
               if (athleteGroup.items && Array.isArray(athleteGroup.items)) {
                 athleteGroup.items.forEach((athlete: any) => {
-                  if (athlete.fullName || athlete.displayName) {
-                    // Check if this player already exists
-                    const existingPlayer = this.players.find(p => 
-                      p.name.toLowerCase() === (athlete.fullName || athlete.displayName || '').toLowerCase() &&
-                      p.sport === 'NBA'
-                    );
-                    
-                    if (!existingPlayer) {
-                      this.players.push({
-                        id: `NBA_roster_${athlete.id}`,
-                        name: athlete.fullName || athlete.displayName || '',
-                        firstName: athlete.firstName || '',
-                        lastName: athlete.lastName || '',
-                        team: rosterData.team?.displayName || 'Unknown Team',
-                        teamAbbr: rosterData.team?.abbreviation || '',
-                        position: this.normalizePosition(athlete.position?.name || athlete.position?.abbreviation || 'N/A', 'NBA'),
-                        sport: 'NBA',
-                        headshot: athlete.headshot?.href || '',
-                        searchTerms: this.createSearchTerms(
-                          athlete.fullName || athlete.displayName || '', 
-                          athlete.firstName || '', 
-                          athlete.lastName || ''
-                        )
-                      });
-                      additionalNBACount++;
-                    }
-                  }
+                  const name = athlete.fullName || athlete.displayName;
+                  if (!name) return;
+
+                  // Check if player already exists
+                  const existingPlayer = this.players.find(p => 
+                    p.name.toLowerCase() === name.toLowerCase() && p.sport === sport
+                  );
+                  if (existingPlayer) return;
+
+                  this.players.push({
+                    id: `${sport}_roster_${athlete.id || Date.now()}`,
+                    name,
+                    firstName: athlete.firstName || '',
+                    lastName: athlete.lastName || '',
+                    team: rosterData.team?.displayName || 'Unknown Team',
+                    teamAbbr: rosterData.team?.abbreviation || '',
+                    position: this.normalizePosition(athlete.position?.name || athlete.position?.abbreviation || 'N/A', sport),
+                    sport,
+                    headshot: athlete.headshot?.href || '',
+                    searchTerms: this.createSearchTerms(name, athlete.firstName || '', athlete.lastName || '')
+                  });
+                  sportPlayerCount++;
                 });
               }
             });
           }
         } catch (error) {
-          console.warn(`Error loading NBA team ${teamId} roster:`, error);
+          console.warn(`Error loading ${sport} team ${teamId} roster:`, error);
         }
         
         // Small delay to respect ESPN's servers
-        await new Promise(resolve => setTimeout(resolve, 100));
+        await new Promise(resolve => setTimeout(resolve, 50));
       }
-      
-      console.log(`Loaded ${additionalNBACount} additional NBA players from team rosters`);
     } catch (error) {
-      console.error('Error loading additional NBA players:', error);
+      console.error(`Error loading ${sport} team rosters:`, error);
     }
+
+    return sportPlayerCount;
+  }
+
+  private async loadPopularPlayersForSport(sport: 'NBA' | 'NFL' | 'MLB' | 'NHL'): Promise<void> {
+    const popularPlayers = {
+      NBA: [
+        { name: 'LeBron James', team: 'Los Angeles Lakers', position: 'SF' },
+        { name: 'Stephen Curry', team: 'Golden State Warriors', position: 'PG' },
+        { name: 'Giannis Antetokounmpo', team: 'Milwaukee Bucks', position: 'PF' },
+        { name: 'Luka Dončić', team: 'Dallas Mavericks', position: 'PG' },
+        { name: 'Joel Embiid', team: 'Philadelphia 76ers', position: 'C' },
+        { name: 'Nikola Jokic', team: 'Denver Nuggets', position: 'C' },
+        { name: 'Jayson Tatum', team: 'Boston Celtics', position: 'SF' },
+        { name: 'Kevin Durant', team: 'Phoenix Suns', position: 'SF' },
+        { name: 'Anthony Davis', team: 'Los Angeles Lakers', position: 'PF' },
+        { name: 'Kawhi Leonard', team: 'LA Clippers', position: 'SF' },
+        { name: 'Jimmy Butler', team: 'Miami Heat', position: 'SF' },
+        { name: 'Damian Lillard', team: 'Milwaukee Bucks', position: 'PG' },
+        { name: 'Anthony Edwards', team: 'Minnesota Timberwolves', position: 'SG' },
+        { name: 'Victor Wembanyama', team: 'San Antonio Spurs', position: 'C' },
+        { name: 'Shai Gilgeous-Alexander', team: 'Oklahoma City Thunder', position: 'PG' }
+      ],
+      NFL: [
+        { name: 'Patrick Mahomes', team: 'Kansas City Chiefs', position: 'QB' },
+        { name: 'Josh Allen', team: 'Buffalo Bills', position: 'QB' },
+        { name: 'Lamar Jackson', team: 'Baltimore Ravens', position: 'QB' },
+        { name: 'Joe Burrow', team: 'Cincinnati Bengals', position: 'QB' },
+        { name: 'Aaron Rodgers', team: 'New York Jets', position: 'QB' },
+        { name: 'Justin Herbert', team: 'Los Angeles Chargers', position: 'QB' },
+        { name: 'Dak Prescott', team: 'Dallas Cowboys', position: 'QB' },
+        { name: 'Tua Tagovailoa', team: 'Miami Dolphins', position: 'QB' },
+        { name: 'Christian McCaffrey', team: 'San Francisco 49ers', position: 'RB' },
+        { name: 'Travis Kelce', team: 'Kansas City Chiefs', position: 'TE' },
+        { name: 'Tyreek Hill', team: 'Miami Dolphins', position: 'WR' },
+        { name: 'Cooper Kupp', team: 'Los Angeles Rams', position: 'WR' },
+        { name: 'Aaron Donald', team: 'Los Angeles Rams', position: 'DT' },
+        { name: 'T.J. Watt', team: 'Pittsburgh Steelers', position: 'LB' },
+        { name: 'Myles Garrett', team: 'Cleveland Browns', position: 'DE' }
+      ],
+      MLB: [
+        { name: 'Mike Trout', team: 'Los Angeles Angels', position: 'OF' },
+        { name: 'Shohei Ohtani', team: 'Los Angeles Dodgers', position: 'DH/P' },
+        { name: 'Aaron Judge', team: 'New York Yankees', position: 'OF' },
+        { name: 'Mookie Betts', team: 'Los Angeles Dodgers', position: 'OF' },
+        { name: 'Ronald Acuña Jr.', team: 'Atlanta Braves', position: 'OF' },
+        { name: 'Juan Soto', team: 'New York Yankees', position: 'OF' },
+        { name: 'Fernando Tatis Jr.', team: 'San Diego Padres', position: 'SS' },
+        { name: 'Vladimir Guerrero Jr.', team: 'Toronto Blue Jays', position: '1B' },
+        { name: 'Francisco Lindor', team: 'New York Mets', position: 'SS' },
+        { name: 'Freddie Freeman', team: 'Los Angeles Dodgers', position: '1B' },
+        { name: 'Manny Machado', team: 'San Diego Padres', position: '3B' },
+        { name: 'Pete Alonso', team: 'New York Mets', position: '1B' },
+        { name: 'Jose Altuve', team: 'Houston Astros', position: '2B' },
+        { name: 'Yordan Alvarez', team: 'Houston Astros', position: 'DH' },
+        { name: 'Kyle Tucker', team: 'Houston Astros', position: 'OF' }
+      ],
+      NHL: [
+        { name: 'Connor McDavid', team: 'Edmonton Oilers', position: 'C' },
+        { name: 'Leon Draisaitl', team: 'Edmonton Oilers', position: 'C' },
+        { name: 'Nathan MacKinnon', team: 'Colorado Avalanche', position: 'C' },
+        { name: 'Auston Matthews', team: 'Toronto Maple Leafs', position: 'C' },
+        { name: 'Erik Karlsson', team: 'Pittsburgh Penguins', position: 'D' },
+        { name: 'Nikita Kucherov', team: 'Tampa Bay Lightning', position: 'RW' },
+        { name: 'David Pastrnak', team: 'Boston Bruins', position: 'RW' },
+        { name: 'Igor Shesterkin', team: 'New York Rangers', position: 'G' },
+        { name: 'Cale Makar', team: 'Colorado Avalanche', position: 'D' },
+        { name: 'Victor Hedman', team: 'Tampa Bay Lightning', position: 'D' },
+        { name: 'Sidney Crosby', team: 'Pittsburgh Penguins', position: 'C' },
+        { name: 'Alexander Ovechkin', team: 'Washington Capitals', position: 'LW' },
+        { name: 'Kirill Kaprizov', team: 'Minnesota Wild', position: 'LW' },
+        { name: 'Matthew Tkachuk', team: 'Florida Panthers', position: 'LW' },
+        { name: 'Jack Hughes', team: 'New Jersey Devils', position: 'C' }
+      ]
+    };
+
+    const players = popularPlayers[sport] || [];
+    console.log(`Adding ${players.length} popular ${sport} players as fallback`);
+    
+    players.forEach((player, index) => {
+      // Check if player already exists
+      const existingPlayer = this.players.find(p => 
+        p.name.toLowerCase() === player.name.toLowerCase() && p.sport === sport
+      );
+      if (!existingPlayer) {
+        this.players.push({
+          id: `${sport}_popular_${index}`,
+          name: player.name,
+          firstName: player.name.split(' ')[0],
+          lastName: player.name.split(' ').slice(1).join(' '),
+          team: player.team,
+          teamAbbr: '',
+          position: player.position,
+          sport,
+          headshot: '',
+          searchTerms: this.createSearchTerms(player.name, player.name.split(' ')[0], player.name.split(' ').slice(1).join(' '))
+        });
+      }
+    });
   }
 
   private normalizePosition(position: string, sport: string): string {
     if (sport === 'NBA') {
-      // Normalize NBA positions
       const pos = position.toUpperCase();
       if (pos.includes('POINT') || pos === 'PG') return 'PG';
       if (pos.includes('SHOOTING') || pos === 'SG') return 'SG';
@@ -270,104 +339,6 @@ class FreePlayerDatabase {
     return position;
   }
 
-  private async loadSportFromTeamRosters(sport: 'NBA' | 'NFL' | 'MLB' | 'NHL'): Promise<void> {
-    const sportConfigs = {
-      'NBA': { sportPath: 'basketball/nba' },
-      'NFL': { sportPath: 'football/nfl' },
-      'MLB': { sportPath: 'baseball/mlb' },
-      'NHL': { sportPath: 'hockey/nhl' }
-    };
-
-    const config = sportConfigs[sport];
-    let sportPlayerCount = 0;
-
-    try {
-      // Get all team IDs for this sport
-      const teamsUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.sportPath}/teams`;
-      const teamsResponse = await fetch(teamsUrl);
-      
-      if (!teamsResponse.ok) {
-        console.warn(`Failed to load ${sport} teams: ${teamsResponse.status}`);
-        return;
-      }
-
-      const teamsData = await teamsResponse.json();
-      
-      // Extract team IDs
-      const teamIds: number[] = [];
-      if (teamsData.sports?.[0]?.leagues?.[0]?.teams) {
-        teamsData.sports[0].leagues[0].teams.forEach((teamObj: any) => {
-          if (teamObj.team?.id) {
-            teamIds.push(parseInt(teamObj.team.id));
-          }
-        });
-      }
-
-      console.log(`Found ${teamIds.length} ${sport} teams for roster fallback`);
-
-      // Fetch roster for each team
-      for (const teamId of teamIds) {
-        try {
-          const rosterUrl = `https://site.api.espn.com/apis/site/v2/sports/${config.sportPath}/teams/${teamId}/roster`;
-          const rosterResponse = await fetch(rosterUrl);
-          
-          if (!rosterResponse.ok) {
-            console.warn(`Failed to load ${sport} team ${teamId} roster: ${rosterResponse.status}`);
-            continue;
-          }
-
-          const rosterData = await rosterResponse.json();
-          
-          // Handle nested structure: athletes[*].items[*]
-          if (rosterData.athletes && Array.isArray(rosterData.athletes)) {
-            rosterData.athletes.forEach((athleteGroup: any) => {
-              if (athleteGroup.items && Array.isArray(athleteGroup.items)) {
-                athleteGroup.items.forEach((athlete: any) => {
-                  if (athlete.fullName || athlete.displayName) {
-                    // Check if this player already exists
-                    const existingPlayer = this.players.find(p => 
-                      p.name.toLowerCase() === (athlete.fullName || athlete.displayName || '').toLowerCase() &&
-                      p.sport === sport
-                    );
-                    
-                    if (!existingPlayer) {
-                      this.players.push({
-                        id: `${sport}_${athlete.id}`,
-                        name: athlete.fullName || athlete.displayName || '',
-                        firstName: athlete.firstName || '',
-                        lastName: athlete.lastName || '',
-                        team: rosterData.team?.displayName || 'Unknown Team',
-                        teamAbbr: rosterData.team?.abbreviation || '',
-                        position: this.normalizePosition(athlete.position?.name || athlete.position?.abbreviation || 'N/A', sport),
-                        sport: sport,
-                        headshot: athlete.headshot?.href || '',
-                        searchTerms: this.createSearchTerms(
-                          athlete.fullName || athlete.displayName || '', 
-                          athlete.firstName || '', 
-                          athlete.lastName || ''
-                        )
-                      });
-                      sportPlayerCount++;
-                    }
-                  }
-                });
-              }
-            });
-          }
-        } catch (error) {
-          console.warn(`Error loading ${sport} team ${teamId} roster:`, error);
-        }
-        
-        // Small delay to respect ESPN's servers
-        await new Promise(resolve => setTimeout(resolve, 50));
-      }
-      
-      console.log(`Loaded ${sportPlayerCount} ${sport} players from team rosters (fallback)`);
-    } catch (error) {
-      console.error(`Error loading ${sport} team rosters:`, error);
-    }
-  }
-
   private createSearchTerms(displayName: string, firstName: string, lastName: string): string[] {
     const terms = [];
     
@@ -377,7 +348,7 @@ class FreePlayerDatabase {
       terms.push(`${firstName} ${lastName}`.toLowerCase());
       terms.push(lastName.toLowerCase());
       
-      // Common nickname variations for NBA players
+      // Common nickname variations
       const nicknameMap: Record<string, string[]> = {
         'Anthony': ['ant', 'tony'],
         'Christopher': ['chris'],
@@ -410,7 +381,7 @@ class FreePlayerDatabase {
       }
     }
     
-    return [...new Set(terms)]; // Remove duplicates
+    return [...new Set(terms)];
   }
 
   searchPlayers(query: string, limit = 8): ESPNPlayer[] {
@@ -426,7 +397,6 @@ class FreePlayerDatabase {
       }
     }
     
-    // Sort by match score (higher = better match), with manual overrides getting slight boost
     return matches
       .sort((a, b) => {
         const scoreA = (a.matchScore || 0) + (a.id.includes('manual') ? 5 : 0);
@@ -441,20 +411,18 @@ class FreePlayerDatabase {
     
     for (const term of player.searchTerms) {
       if (term === searchTerm) {
-        score += 100; // Exact match
+        score += 100;
       } else if (term.startsWith(searchTerm)) {
-        score += 50; // Starts with query
+        score += 50;
       } else if (term.includes(searchTerm)) {
-        score += 25; // Contains query
+        score += 25;
       }
     }
     
-    // Boost score for manual overrides (they're likely more accurate/current)
     if (player.id.startsWith('manual_')) {
       score += 10;
     }
     
-    // Additional boost for NBA players to improve their search ranking
     if (player.sport === 'NBA') {
       score += 2;
     }
@@ -474,7 +442,6 @@ class FreePlayerDatabase {
     return this.players.length;
   }
 
-  // Refresh player data (can be called periodically)
   async refreshPlayers(): Promise<ESPNPlayer[]> {
     this.isLoaded = false;
     this.loadingPromise = null;
