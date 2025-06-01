@@ -19,6 +19,7 @@ const Index = () => {
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
 
   const handlePlayerSelect = (player: { name: string; playerData?: ESPNPlayer }) => {
+    console.log('Player selected:', player);
     setSelectedPlayer(player);
     setSearchResults(true);
   };
@@ -38,8 +39,17 @@ const Index = () => {
   };
 
   const handleQuickPlayerSelect = (playerName: string) => {
-    handlePlayerSelect({ name: playerName });
+    console.log('Quick player select:', playerName);
+    const player = { name: playerName };
+    handlePlayerSelect(player);
   };
+
+  const handleNewSearch = () => {
+    setSearchResults(false);
+    setSelectedPlayer(null);
+  };
+
+  console.log('Current state - searchResults:', searchResults, 'selectedPlayer:', selectedPlayer);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white">
@@ -199,7 +209,7 @@ const Index = () => {
               </div>
               <Button 
                 variant="outline" 
-                onClick={() => setSearchResults(false)}
+                onClick={handleNewSearch}
                 className="border-slate-600/50 text-slate-300 hover:bg-slate-800/50 hover:border-cyan-400/50 hover:text-cyan-300 transition-all backdrop-blur-sm"
               >
                 New Search
