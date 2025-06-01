@@ -59,12 +59,13 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
+      console.log('Form submit - searching for:', query.trim());
       const playerData = await findPlayerData(query.trim());
       const player = { 
         name: query.trim(), 
         playerData 
       };
-      console.log('Submitting player:', player);
+      console.log('Form submit - calling onPlayerSelect with:', player);
       onPlayerSelect(player);
       if (onSearch) onSearch(query.trim());
       setShowSuggestions(false);
@@ -78,16 +79,18 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
   };
 
   const handleSuggestionClick = async (suggestion: string) => {
+    console.log('Suggestion clicked:', suggestion);
     setQuery(suggestion);
+    setShowSuggestions(false);
+    
     const playerData = await findPlayerData(suggestion);
     const player = { 
       name: suggestion, 
       playerData 
     };
-    console.log('Selected suggestion player:', player);
+    console.log('Suggestion click - calling onPlayerSelect with:', player);
     onPlayerSelect(player);
     if (onSearch) onSearch(suggestion);
-    setShowSuggestions(false);
   };
 
   const handleClear = () => {
