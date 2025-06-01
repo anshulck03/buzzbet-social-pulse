@@ -27,7 +27,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
         
         // Set a timeout for the entire operation
         const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Analysis timeout - taking too long')), 30000)
+          setTimeout(() => reject(new Error('Analysis timeout - taking too long')), 15000)
         );
         
         const analysisPromise = async () => {
@@ -87,7 +87,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
     const sport = player?.playerData?.sport || 'NBA';
     return {
       playerSummary: `${playerName} is a professional ${sport} player. Analysis based on available data shows ongoing community interest and discussion.`,
-      performanceTrajectory: 'Monitor',
+      performanceTrajectory: 'Sleeper Pick',
       performanceScore: 0,
       trajectoryConfidence: 75,
       sentiment: 'neutral',
@@ -106,7 +106,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
         matchupReasoning: 'Standard competitive matchup expected'
       },
       fantasyInsights: {
-        startSitRecommendation: 'Monitor',
+        startSitRecommendation: 'Flex',
         startSitConfidence: 70,
         tradeValueTrend: 'Stable',
         tradeValueExplanation: 'Maintaining current market value',
