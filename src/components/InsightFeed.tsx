@@ -18,6 +18,9 @@ const InsightFeed = ({ player }: InsightFeedProps) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  console.log('InsightFeed player prop:', player);
+  console.log('Player data exists:', !!player?.playerData);
+
   useEffect(() => {
     if (!player?.name) return;
 
@@ -60,9 +63,12 @@ const InsightFeed = ({ player }: InsightFeedProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Player Card - Show when we have player data */}
+      {/* Player Card - Always show when we have player data */}
       {player?.playerData && (
         <Card className="bg-slate-800/50 border-slate-700">
+          <CardHeader>
+            <CardTitle className="text-white text-lg">Player Profile</CardTitle>
+          </CardHeader>
           <CardContent className="p-4">
             <EnhancedPlayerCard 
               player={player.playerData} 
@@ -127,9 +133,9 @@ const InsightFeed = ({ player }: InsightFeedProps) => {
           <div className="text-sm text-slate-400">
             <p className="mb-2">Multi-sport discussions, fantasy advice, injury reports</p>
             <div className="space-y-1">
-              <p>• Team-specific community posts</p>
-              <p>• Fantasy sports insights across leagues</p>
-              <p>• Real-time sentiment analysis</p>
+              <p>• Team-specific community discussions</p>
+              <p>• Fantasy sports insights across multiple leagues</p>
+              <p>• Real-time sentiment analysis across communities</p>
             </div>
           </div>
         </CardHeader>
