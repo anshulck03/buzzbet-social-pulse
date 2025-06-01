@@ -1,8 +1,10 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, X, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { ESPNPlayer, espnPlayerDB } from '@/services/espnPlayerDatabase';
 
 interface PlayerSearchBoxProps {
@@ -226,19 +228,33 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
                 key={`${player.id}_${index}`}
                 type="button"
                 onClick={() => handlePlayerClick(player)}
-                className="w-full px-4 py-3 text-left text-white hover:bg-slate-700 transition-colors focus:outline-none focus:bg-slate-700 flex justify-between items-center group"
+                className="w-full px-4 py-3 text-left text-white hover:bg-slate-700 transition-colors focus:outline-none focus:bg-slate-700 flex items-center gap-3 group"
               >
-                <div className="flex flex-col">
-                  <span className="font-medium">{player.name}</span>
-                  {player.position && (
-                    <span className="text-xs text-slate-400">
-                      {player.position}
-                    </span>
-                  )}
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-slate-300">{player.sport}</div>
-                  <div className="text-xs text-slate-400">{player.team}</div>
+                <Avatar className="w-10 h-10 flex-shrink-0">
+                  <AvatarImage 
+                    src={player.headshot} 
+                    alt={player.name}
+                    className="object-cover"
+                  />
+                  <AvatarFallback className="bg-slate-600 text-slate-300 text-sm font-medium">
+                    {player.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex-1 min-w-0">
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-col min-w-0">
+                      <span className="font-medium truncate">{player.name}</span>
+                      {player.position && (
+                        <span className="text-xs text-slate-400">
+                          {player.position}
+                        </span>
+                      )}
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-2">
+                      <div className="text-sm text-slate-300">{player.sport}</div>
+                      <div className="text-xs text-slate-400 truncate max-w-24">{player.team}</div>
+                    </div>
+                  </div>
                 </div>
               </button>
             ))}
