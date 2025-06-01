@@ -3,15 +3,18 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { ESPNPlayer } from '@/services/espnPlayerDatabase';
 
 interface PlayerSearchBoxProps {
-  onSearch: (query: string) => void;
-  onClear: () => void;
+  onPlayerSelect: (player: { name: string; playerData?: ESPNPlayer }) => void;
+  value: { name: string; playerData?: ESPNPlayer } | null;
+  onSearch?: (query: string) => void;
+  onClear?: () => void;
   isLoading?: boolean;
 }
 
-const PlayerSearchBox = ({ onSearch, onClear, isLoading = false }: PlayerSearchBoxProps) => {
-  const [query, setQuery] = useState('');
+const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading = false }: PlayerSearchBoxProps) => {
+  const [query, setQuery] = useState(value?.name || '');
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   
@@ -35,7 +38,9 @@ const PlayerSearchBox = ({ onSearch, onClear, isLoading = false }: PlayerSearchB
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      onSearch(query.trim());
+      const player = { name: query.trim() };
+      onPlayerSelect(player);
+      if (onSearch) onSearch(query.trim());
       setShowSuggestions(false);
     }
   };
@@ -48,14 +53,16 @@ const PlayerSearchBox = ({ onSearch, onClear, isLoading = false }: PlayerSearchB
 
   const handleSuggestionClick = (suggestion: string) => {
     setQuery(suggestion);
-    onSearch(suggestion);
+    const player = { name: suggestion };
+    onPlayerSelect(player);
+    if (onSearch) onSearch(suggestion);
     setShowSuggestions(false);
   };
 
   const handleClear = () => {
     setQuery('');
     setShowSuggestions(false);
-    onClear();
+    if (onClear) onClear();
     inputRef.current?.focus();
   };
 
@@ -108,7 +115,7 @@ const PlayerSearchBox = ({ onSearch, onClear, isLoading = false }: PlayerSearchB
 
       <div className="mt-2 text-center">
         <p className="text-xs text-slate-400">
-          Multi-sport analysis • Team + fantasy subreddits • Player discussion trends • Cross-platform sentiment • 200+ sports communities analyzed
+          Multi-sport analysis • Team + fantasy subreddits • Major sport communities • Cross-platform sentiment • 200+ sports communities analyzed
         </p>
       </div>
     </div>
