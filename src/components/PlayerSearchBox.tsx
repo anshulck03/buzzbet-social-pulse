@@ -38,18 +38,14 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
   const findPlayerData = async (playerName: string): Promise<ESPNPlayer | undefined> => {
     console.log('Searching for player data:', playerName);
     try {
-      // Try to find exact match first
-      const exactMatch = espnPlayerDB.findPlayerByName(playerName);
-      if (exactMatch) {
-        console.log('Found exact match:', exactMatch);
-        return exactMatch;
-      }
-
-      // Try fuzzy search
-      const fuzzyResults = espnPlayerDB.searchPlayers(playerName);
-      if (fuzzyResults.length > 0) {
-        console.log('Found fuzzy match:', fuzzyResults[0]);
-        return fuzzyResults[0];
+      // Ensure the database is loaded first
+      await espnPlayerDB.loadAllPlayers();
+      
+      // Use the searchPlayers method which exists
+      const searchResults = espnPlayerDB.searchPlayers(playerName, 1);
+      if (searchResults.length > 0) {
+        console.log('Found player:', searchResults[0]);
+        return searchResults[0];
       }
 
       console.log('No player data found for:', playerName);

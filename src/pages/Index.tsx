@@ -9,16 +9,36 @@ import PlayerSearchBox from '@/components/PlayerSearchBox';
 import SentimentDashboard from '@/components/SentimentDashboard';
 import InsightFeed from '@/components/InsightFeed';
 import TrendingSection from '@/components/TrendingSection';
+import QuickFilterChips from '@/components/QuickFilterChips';
 import { Player } from '@/data/playersDatabase';
 import { ESPNPlayer } from '@/services/espnPlayerDatabase';
 
 const Index = () => {
   const [selectedPlayer, setSelectedPlayer] = useState<{ name: string; playerData?: ESPNPlayer } | null>(null);
   const [searchResults, setSearchResults] = useState(false);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
 
   const handlePlayerSelect = (player: { name: string; playerData?: ESPNPlayer }) => {
     setSelectedPlayer(player);
     setSearchResults(true);
+  };
+
+  const handleFilterSelect = (filter: string) => {
+    if (!activeFilters.includes(filter)) {
+      setActiveFilters([...activeFilters, filter]);
+    }
+  };
+
+  const handleFilterRemove = (filter: string) => {
+    setActiveFilters(activeFilters.filter(f => f !== filter));
+  };
+
+  const handleClearAllFilters = () => {
+    setActiveFilters([]);
+  };
+
+  const handleQuickPlayerSelect = (playerName: string) => {
+    handlePlayerSelect({ name: playerName });
   };
 
   return (
@@ -76,9 +96,17 @@ const Index = () => {
                 Comprehensive sports intelligence across NBA, NFL, NHL, and MLB with AI-powered subreddit discovery
               </p>
               
-              <div className="max-w-2xl mx-auto">
+              <div className="max-w-2xl mx-auto mb-6">
                 <PlayerSearchBox onPlayerSelect={handlePlayerSelect} value={null} />
               </div>
+
+              <QuickFilterChips
+                onFilterSelect={handleFilterSelect}
+                activeFilters={activeFilters}
+                onFilterRemove={handleFilterRemove}
+                onClearAll={handleClearAllFilters}
+                onPlayerSelect={handleQuickPlayerSelect}
+              />
             </div>
 
             {/* Key Metrics */}
