@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Search, TrendingUp, TrendingDown, AlertTriangle, Activity, Users, Eye, MessageCircle, Brain, Hash, Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,13 +14,14 @@ import { ESPNPlayer } from '@/services/espnPlayerDatabase';
 
 const Index = () => {
   const [selectedPlayer, setSelectedPlayer] = useState<{ name: string; playerData?: ESPNPlayer } | null>(null);
-  const [searchResults, setSearchResults] = useState(false);
+  const [showPlayerPage, setShowPlayerPage] = useState(false);
   const [activeFilters, setActiveFilters] = useState<string[]>([]);
 
   const handlePlayerSelect = (player: { name: string; playerData?: ESPNPlayer }) => {
-    console.log('Player selected:', player);
+    console.log('Player selected in Index:', player);
     setSelectedPlayer(player);
-    setSearchResults(true);
+    setShowPlayerPage(true);
+    console.log('State after player select - showPlayerPage should be true');
   };
 
   const handleFilterSelect = (filter: string) => {
@@ -45,11 +45,12 @@ const Index = () => {
   };
 
   const handleNewSearch = () => {
-    setSearchResults(false);
+    console.log('Handling new search - resetting state');
+    setShowPlayerPage(false);
     setSelectedPlayer(null);
   };
 
-  console.log('Current state - searchResults:', searchResults, 'selectedPlayer:', selectedPlayer);
+  console.log('Current state - showPlayerPage:', showPlayerPage, 'selectedPlayer:', selectedPlayer);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-blue-950 text-white">
@@ -95,7 +96,7 @@ const Index = () => {
       </header>
 
       <div className="container mx-auto px-6 py-8">
-        {!searchResults ? (
+        {!showPlayerPage ? (
           // Landing Page
           <div className="max-w-4xl mx-auto">
             <div className="text-center mb-12">
@@ -200,7 +201,7 @@ const Index = () => {
             <TrendingSection />
           </div>
         ) : (
-          // Search Results Page
+          // Player Information Page
           <div className="space-y-6">
             <div className="flex items-center justify-between">
               <div>
