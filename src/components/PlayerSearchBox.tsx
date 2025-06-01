@@ -19,13 +19,8 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
   const [searchResults, setSearchResults] = useState<ESPNPlayer[]>([]);
   const [dbStats, setDbStats] = useState<{total: number, nba: number, nfl: number, mlb: number, nhl: number} | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
   
-  const suggestions = [
-    'LeBron James', 'Patrick Mahomes', 'Connor McDavid', 'Aaron Judge',
-    'Stephen Curry', 'Josh Allen', 'Nathan MacKinnon', 'Mookie Betts',
-    'Giannis Antetokounmpo', 'Travis Kelce', 'Leon Draisaitl', 'Shohei Ohtani'
-  ];
-
   // Load database stats on component mount
   useEffect(() => {
     const loadStats = async () => {
@@ -58,7 +53,8 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (inputRef.current && !inputRef.current.contains(event.target as Node)) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node) &&
+          inputRef.current && !inputRef.current.contains(event.target as Node)) {
         setShowSuggestions(false);
       }
     };
@@ -104,68 +100,26 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
     const value = e.target.value;
     setQuery(value);
     
-    if (value.length > 1) {
-      // Search database for matching players
+    if (value.length > 0) {
       try {
         await espnPlayerDB.loadAllPlayers();
-        const results = espnPlayerDB.searchPlayers(value, 8);
+        // Get more results for better predictions
+        const results = espnPlayerDB.searchPlayers(value, 10);
         setSearchResults(results);
         setShowSuggestions(true);
         console.log(`Found ${results.length} players matching "${value}":`, results.map(p => `${p.name} (${p.sport})`));
       } catch (error) {
         console.error('Error searching players:', error);
         setSearchResults([]);
-        setShowSuggestions(value.length > 0);
+        setShowSuggestions(false);
       }
     } else {
       setSearchResults([]);
-      setShowSuggestions(value.length > 0);
+      setShowSuggestions(false);
     }
   };
 
-  const handleSuggestionClick = async (e: React.MouseEvent, suggestion: string) => {
-    // Prevent event bubbling and default behavior
-    e.preventDefault();
-    e.stopPropagation();
-    
-    console.log('Suggestion clicked:', suggestion);
-    console.log('Event prevented and stopped');
-    
-    // Update UI immediately
-    setQuery(suggestion);
-    setShowSuggestions(false);
-    
-    try {
-      // Find player data
-      console.log('Finding player data for suggestion:', suggestion);
-      const playerData = await findPlayerData(suggestion);
-      
-      const player = { 
-        name: suggestion, 
-        playerData 
-      };
-      
-      console.log('Suggestion - calling onPlayerSelect with:', player);
-      
-      // Call onPlayerSelect immediately
-      onPlayerSelect(player);
-      
-      // Also call onSearch if provided
-      if (onSearch) {
-        console.log('Also calling onSearch');
-        onSearch(suggestion);
-      }
-      
-      console.log('Suggestion processing complete');
-    } catch (error) {
-      console.error('Error in suggestion click:', error);
-    }
-  };
-
-  const handlePlayerClick = async (e: React.MouseEvent, player: ESPNPlayer) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
+  const handlePlayerClick = async (player: ESPNPlayer) => {
     console.log('Player clicked:', player.name);
     
     setQuery(player.name);
@@ -192,27 +146,6 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
     inputRef.current?.focus();
   };
 
-  const filteredSuggestions = suggestions.filter(s => 
-    s.toLowerCase().includes(query.toLowerCase()) && s.toLowerCase() !== query.toLowerCase()
-  );
-
-  // Combine database results and fallback suggestions
-  const combinedSuggestions = [
-    ...searchResults,
-    ...filteredSuggestions.map(name => ({ 
-      id: `suggestion_${name}`, 
-      name, 
-      firstName: name.split(' ')[0],
-      lastName: name.split(' ').slice(1).join(' '),
-      team: 'Various', 
-      teamAbbr: '', 
-      position: '', 
-      sport: 'NBA' as const, 
-      headshot: '', 
-      searchTerms: [name.toLowerCase()] 
-    }))
-  ].slice(0, 8);
-
   return (
     <div className="relative w-full max-w-2xl mx-auto">
       <form onSubmit={handleSubmit} className="relative">
@@ -221,10 +154,14 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
           <Input
             ref={inputRef}
             type="text"
-            placeholder="Search players, try nicknames"
+            placeholder="Search players by name (e.g., LeBron, Mahomes, McDavid)"
             value={query}
             onChange={handleInputChange}
-            onFocus={() => setShowSuggestions(query.length > 0)}
+            onFocus={() => {
+              if (query.length > 0 && searchResults.length > 0) {
+                setShowSuggestions(true);
+              }
+            }}
             className="pl-10 pr-10 py-3 bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
             disabled={isLoading}
           />
@@ -240,25 +177,31 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
         </div>
       </form>
 
-      {showSuggestions && combinedSuggestions.length > 0 && (
-        <Card className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border-slate-600 z-50 shadow-xl">
+      {showSuggestions && searchResults.length > 0 && (
+        <Card 
+          ref={dropdownRef}
+          className="absolute top-full left-0 right-0 mt-1 bg-slate-800 border-slate-600 z-50 shadow-xl max-h-80 overflow-y-auto"
+        >
           <div className="py-2">
-            {combinedSuggestions.map((suggestion, index) => (
+            {searchResults.map((player, index) => (
               <button
-                key={suggestion.id || index}
+                key={`${player.id}_${index}`}
                 type="button"
-                onMouseDown={(e) => suggestion.id?.startsWith('suggestion_') 
-                  ? handleSuggestionClick(e, suggestion.name)
-                  : handlePlayerClick(e, suggestion)
-                }
-                className="w-full px-4 py-2 text-left text-white hover:bg-slate-700 transition-colors focus:outline-none focus:bg-slate-700 flex justify-between items-center"
+                onClick={() => handlePlayerClick(player)}
+                className="w-full px-4 py-3 text-left text-white hover:bg-slate-700 transition-colors focus:outline-none focus:bg-slate-700 flex justify-between items-center group"
               >
-                <span>{suggestion.name}</span>
-                {suggestion.sport && suggestion.team && !suggestion.id?.startsWith('suggestion_') && (
-                  <span className="text-xs text-slate-400">
-                    {suggestion.sport} • {suggestion.team}
-                  </span>
-                )}
+                <div className="flex flex-col">
+                  <span className="font-medium">{player.name}</span>
+                  {player.position && (
+                    <span className="text-xs text-slate-400">
+                      {player.position}
+                    </span>
+                  )}
+                </div>
+                <div className="text-right">
+                  <div className="text-sm text-slate-300">{player.sport}</div>
+                  <div className="text-xs text-slate-400">{player.team}</div>
+                </div>
               </button>
             ))}
           </div>
