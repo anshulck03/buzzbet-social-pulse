@@ -94,6 +94,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
       sentimentConfidence: 70,
       sport: sport,
       recommendation: `${playerName} shows consistent performance patterns. Monitor for updates and recent performance trends.`,
+      fantasyImpact: `${playerName} maintains fantasy relevance in ${sport} leagues. Monitor for recent performance updates.`,
       keyTrends: [`Active discussion about ${playerName} in sports communities`],
       opportunities: [`${playerName} maintains fan engagement`],
       riskFactors: [`Limited recent data available for ${playerName}`],

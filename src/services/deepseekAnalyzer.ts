@@ -1,4 +1,3 @@
-
 interface DeepSeekPostAnalysis {
   performanceScore: number;
   confidence: number;
@@ -71,31 +70,75 @@ export class DeepSeekAnalyzer {
   }
 
   private async makeDeepSeekRequest(prompt: string): Promise<any> {
-    const response = await fetch(this.baseUrl, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: this.model,
-        messages: [
-          {
-            role: 'user',
-            content: prompt
-          }
-        ],
-        temperature: 0.1,
-        max_tokens: 1500
-      })
+    console.log('DeepSeek API Request Details:', {
+      url: this.baseUrl,
+      model: this.model,
+      hasApiKey: !!this.apiKey,
+      apiKeyLength: this.apiKey?.length,
+      promptLength: prompt.length
     });
 
-    if (!response.ok) {
-      throw new Error(`DeepSeek API error: ${response.statusText}`);
-    }
+    try {
+      const response = await fetch(this.baseUrl, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: this.model,
+          messages: [
+            {
+              role: 'user',
+              content: prompt
+            }
+          ],
+          temperature: 0.1,
+          max_tokens: 1500
+        })
+      });
 
-    const data = await response.json();
-    return data.choices[0].message.content;
+      console.log('DeepSeek API Response Status:', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('DeepSeek API Error Details:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorText: errorText
+        });
+        
+        // Check for specific error types
+        if (response.status === 401) {
+          throw new Error(`DeepSeek API authentication failed - check API key validity`);
+        } else if (response.status === 429) {
+          throw new Error(`DeepSeek API rate limit exceeded - too many requests`);
+        } else if (response.status === 402) {
+          throw new Error(`DeepSeek API billing issue - insufficient credits or expired subscription`);
+        } else {
+          throw new Error(`DeepSeek API error: ${response.status} ${response.statusText} - ${errorText}`);
+        }
+      }
+
+      const data = await response.json();
+      console.log('DeepSeek API Success:', {
+        hasChoices: !!data.choices,
+        choicesLength: data.choices?.length,
+        usage: data.usage
+      });
+
+      return data.choices[0].message.content;
+    } catch (networkError) {
+      console.error('DeepSeek Network Error:', networkError);
+      if (networkError instanceof Error) {
+        throw new Error(`DeepSeek network error: ${networkError.message}`);
+      }
+      throw networkError;
+    }
   }
 
   private delay(ms: number): Promise<void> {
