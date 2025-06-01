@@ -3,7 +3,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Search, X } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
-import { ESPNPlayer } from '@/services/espnPlayerDatabase';
+import { ESPNPlayer, espnPlayerDB } from '@/services/espnPlayerDatabase';
 
 interface PlayerSearchBoxProps {
   onPlayerSelect: (player: { name: string; playerData?: ESPNPlayer }) => void;
@@ -35,10 +35,40 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const findPlayerData = async (playerName: string): Promise<ESPNPlayer | undefined> => {
+    console.log('Searching for player data:', playerName);
+    try {
+      // Try to find exact match first
+      const exactMatch = espnPlayerDB.findPlayerByName(playerName);
+      if (exactMatch) {
+        console.log('Found exact match:', exactMatch);
+        return exactMatch;
+      }
+
+      // Try fuzzy search
+      const fuzzyResults = espnPlayerDB.searchPlayers(playerName);
+      if (fuzzyResults.length > 0) {
+        console.log('Found fuzzy match:', fuzzyResults[0]);
+        return fuzzyResults[0];
+      }
+
+      console.log('No player data found for:', playerName);
+      return undefined;
+    } catch (error) {
+      console.error('Error finding player data:', error);
+      return undefined;
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (query.trim()) {
-      const player = { name: query.trim() };
+      const playerData = await findPlayerData(query.trim());
+      const player = { 
+        name: query.trim(), 
+        playerData 
+      };
+      console.log('Submitting player:', player);
       onPlayerSelect(player);
       if (onSearch) onSearch(query.trim());
       setShowSuggestions(false);
@@ -51,9 +81,14 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
     setShowSuggestions(value.length > 0);
   };
 
-  const handleSuggestionClick = (suggestion: string) => {
+  const handleSuggestionClick = async (suggestion: string) => {
     setQuery(suggestion);
-    const player = { name: suggestion };
+    const playerData = await findPlayerData(suggestion);
+    const player = { 
+      name: suggestion, 
+      playerData 
+    };
+    console.log('Selected suggestion player:', player);
     onPlayerSelect(player);
     if (onSearch) onSearch(suggestion);
     setShowSuggestions(false);
