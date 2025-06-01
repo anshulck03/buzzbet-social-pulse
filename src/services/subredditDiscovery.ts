@@ -1,4 +1,3 @@
-
 import { ESPNPlayer } from '@/services/espnPlayerDatabase';
 
 export interface SportSubreddits {
@@ -7,6 +6,7 @@ export interface SportSubreddits {
   fantasy: string[];
   analysis: string[];
   insider: string[];
+  general: string[];
 }
 
 export class SubredditDiscoveryService {
@@ -17,31 +17,35 @@ export class SubredditDiscoveryService {
     this.sportSubreddits = {
       NBA: {
         primary: ['nba', 'basketball'],
-        team: ['lakers', 'warriors', 'celtics', 'heat', 'bulls', 'knicks', 'nets', 'sixers', 'raptors', 'magic', 'hawks', 'hornets', 'pistons', 'pacers', 'cavaliers', 'bucks', 'nuggets', 'timberwolves', 'thunder', 'blazers', 'jazz', 'mavericks', 'rockets', 'spurs', 'pelicans', 'grizzlies', 'suns', 'kings', 'clippers', 'lakers'],
-        fantasy: ['fantasybball', 'fantasybball', 'dynastybball'],
-        analysis: ['nbadiscussion', 'nbatalk', 'nbaanalysis'],
-        insider: ['nbainsiders', 'nbatradediscussion']
+        team: ['lakers', 'warriors', 'celtics', 'heat', 'bulls', 'knicks', 'nets', 'sixers', 'raptors', 'magic', 'hawks', 'hornets', 'pistons', 'pacers', 'cavaliers', 'bucks', 'nuggets', 'timberwolves', 'thunder', 'blazers', 'jazz', 'mavericks', 'rockets', 'spurs', 'pelicans', 'grizzlies', 'suns', 'kings', 'clippers'],
+        fantasy: ['fantasybball', 'dynastybball', 'nbafantasy'],
+        analysis: ['nbadiscussion', 'nbatalk', 'nbaanalysis', 'nbanoobs'],
+        insider: ['nbainsiders', 'nbatradediscussion', 'nbatrades'],
+        general: ['sports', 'espn', 'sportscenter']
       },
       NFL: {
         primary: ['nfl', 'football'],
         team: ['patriots', 'bills', 'dolphins', 'jets', 'steelers', 'ravens', 'browns', 'bengals', 'titans', 'colts', 'texans', 'jaguars', 'chiefs', 'chargers', 'broncos', 'raiders', 'cowboys', 'giants', 'eagles', 'commanders', 'packers', 'bears', 'lions', 'vikings', 'falcons', 'panthers', 'saints', 'buccaneers', 'cardinals', 'rams', 'seahawks', 'niners'],
-        fantasy: ['fantasyfootball', 'dynastyff', 'redraftfantasyfootball'],
-        analysis: ['nflanalysis', 'nfldiscussion', 'nflnoobs'],
-        insider: ['nflinsiders', 'nfltradediscussion']
+        fantasy: ['fantasyfootball', 'dynastyff', 'redraftfantasyfootball', 'dfs'],
+        analysis: ['nflanalysis', 'nfldiscussion', 'nflnoobs', 'nflcirclejerk'],
+        insider: ['nflinsiders', 'nfltradediscussion', 'nfldraft'],
+        general: ['sports', 'espn', 'sportscenter', 'americanfootball']
       },
       NHL: {
         primary: ['hockey', 'nhl'],
         team: ['bruins', 'sabres', 'detroitredwings', 'floridapanthers', 'habs', 'ottawasenators', 'tampabaylightning', 'leafs', 'canes', 'bluejackets', 'devils', 'newyorkislanders', 'rangers', 'flyers', 'penguins', 'caps', 'blackhawks', 'coloradoavalanche', 'dallasstars', 'wildhockey', 'predators', 'stlouisblues', 'winnipegjets', 'anaheimducks', 'calgaryflames', 'edmontonoilers', 'losangeleskings', 'sanjosesharks', 'canucks', 'goldenknights', 'seattlekraken'],
-        fantasy: ['fantasyhockey', 'dynastyhockey'],
-        analysis: ['hockeyanalysis', 'hockeyinsiders', 'nhlanalysis'],
-        insider: ['hockeyinsiders', 'nhltradediscussion']
+        fantasy: ['fantasyhockey', 'dynastyhockey', 'hockeyfantasy'],
+        analysis: ['hockeyanalysis', 'hockeyinsiders', 'nhlanalysis', 'hockeydiscussion'],
+        insider: ['hockeyinsiders', 'nhltradediscussion', 'nhldraft'],
+        general: ['sports', 'espn', 'icehockey']
       },
       MLB: {
         primary: ['baseball', 'mlb'],
         team: ['redsox', 'nyyankees', 'orioles', 'rays', 'bluejays', 'whitesox', 'guardians', 'tigers', 'royals', 'twins', 'astros', 'angels', 'athletics', 'mariners', 'rangers', 'braves', 'marlins', 'mets', 'phillies', 'nationals', 'cubs', 'reds', 'brewers', 'pirates', 'cardinals', 'diamondbacks', 'rockies', 'dodgers', 'padres', 'giants'],
-        fantasy: ['fantasybaseball', 'dynastybaseball'],
-        analysis: ['mlbanalysis', 'baseballanalysis', 'sabermetrics'],
-        insider: ['baseballinsiders', 'mlbtradediscussion']
+        fantasy: ['fantasybaseball', 'dynastybaseball', 'baseballfantasy'],
+        analysis: ['mlbanalysis', 'baseballanalysis', 'sabermetrics', 'baseball101'],
+        insider: ['baseballinsiders', 'mlbtradediscussion', 'mlbdraft'],
+        general: ['sports', 'espn', 'sportscenter']
       }
     };
 
@@ -84,12 +88,6 @@ export class SubredditDiscoveryService {
         // Add primary sport subreddits
         subreddits.push(...sportSubs.primary);
         
-        // Add fantasy subreddits
-        subreddits.push(...sportSubs.fantasy);
-        
-        // Add analysis subreddits
-        subreddits.push(...sportSubs.analysis.slice(0, 2));
-        
         // Add team-specific subreddit if available
         if (playerData.team) {
           const teamSub = this.getTeamSubreddit(playerData.team, sport);
@@ -97,6 +95,18 @@ export class SubredditDiscoveryService {
             subreddits.unshift(teamSub); // Add team sub at the beginning for priority
           }
         }
+        
+        // Add fantasy subreddits
+        subreddits.push(...sportSubs.fantasy);
+        
+        // Add analysis subreddits
+        subreddits.push(...sportSubs.analysis.slice(0, 3));
+        
+        // Add insider subreddits
+        subreddits.push(...sportSubs.insider.slice(0, 2));
+        
+        // Add general sports subreddits
+        subreddits.push(...sportSubs.general.slice(0, 2));
       }
     } else {
       // If no player data, search across all major sports
@@ -105,12 +115,12 @@ export class SubredditDiscoveryService {
         ...this.sportSubreddits.NFL.primary,
         ...this.sportSubreddits.NHL.primary,
         ...this.sportSubreddits.MLB.primary,
-        'sports'
+        'sports', 'espn'
       );
     }
     
     // Remove duplicates and limit to reasonable number
-    return [...new Set(subreddits)].slice(0, 15);
+    return [...new Set(subreddits)].slice(0, 20);
   }
 
   private getTeamSubreddit(teamName: string, sport: string): string | null {
@@ -145,6 +155,7 @@ export class SubredditDiscoveryService {
     if (sportSubs.fantasy.includes(subreddit)) return 3;
     if (sportSubs.analysis.includes(subreddit)) return 2;
     if (sportSubs.insider.includes(subreddit)) return 2;
+    if (sportSubs.general.includes(subreddit)) return 1;
     
     return 1;
   }
@@ -158,7 +169,8 @@ export class SubredditDiscoveryService {
         ...subs.team,
         ...subs.fantasy,
         ...subs.analysis,
-        ...subs.insider
+        ...subs.insider,
+        ...subs.general
       ];
       
       if (allSubs.includes(sub)) {
