@@ -1,3 +1,4 @@
+
 interface DeepSeekPostAnalysis {
   performanceScore: number;
   confidence: number;
@@ -62,7 +63,7 @@ export class DeepSeekAnalyzer {
   private cache: Map<string, any>;
 
   constructor() {
-    this.apiKey = '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';
+    this.apiKey = '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';
     this.baseUrl = 'https://openrouter.ai/api/v1/chat/completions';
     this.model = 'deepseek/deepseek-r1-0528:free';
     this.requestDelay = 1000;
