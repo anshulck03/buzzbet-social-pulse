@@ -50,7 +50,11 @@ const InsightFeed = ({ player }: InsightFeedProps) => {
       try {
         const { posts: redditPosts, comments: redditComments, searchedSubreddits: subreddits } = 
           await redditApi.searchPlayerMentions(player.name, player.playerData);
-        setPosts(redditPosts);
+        
+        // Sort posts by created_utc in descending order (most recent first)
+        const sortedPosts = redditPosts.sort((a, b) => b.created_utc - a.created_utc);
+        
+        setPosts(sortedPosts);
         setComments(redditComments);
         setSearchedSubreddits(subreddits);
       } catch (err) {
