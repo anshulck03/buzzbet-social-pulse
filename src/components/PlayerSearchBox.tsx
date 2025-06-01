@@ -80,17 +80,35 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
 
   const handleSuggestionClick = async (suggestion: string) => {
     console.log('Suggestion clicked:', suggestion);
+    console.log('About to call onPlayerSelect from suggestion click');
+    
+    // Update the query immediately
     setQuery(suggestion);
     setShowSuggestions(false);
     
-    const playerData = await findPlayerData(suggestion);
-    const player = { 
-      name: suggestion, 
-      playerData 
-    };
-    console.log('Suggestion click - calling onPlayerSelect with:', player);
-    onPlayerSelect(player);
-    if (onSearch) onSearch(suggestion);
+    // Find player data and call onPlayerSelect
+    try {
+      const playerData = await findPlayerData(suggestion);
+      const player = { 
+        name: suggestion, 
+        playerData 
+      };
+      console.log('Suggestion click - calling onPlayerSelect with:', player);
+      console.log('onPlayerSelect function:', onPlayerSelect);
+      
+      // Call onPlayerSelect and ensure it's processed
+      onPlayerSelect(player);
+      
+      // Also trigger onSearch if provided
+      if (onSearch) {
+        console.log('Also calling onSearch with:', suggestion);
+        onSearch(suggestion);
+      }
+      
+      console.log('Suggestion click processing complete');
+    } catch (error) {
+      console.error('Error in suggestion click:', error);
+    }
   };
 
   const handleClear = () => {
@@ -137,7 +155,10 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
             {filteredSuggestions.slice(0, 6).map((suggestion, index) => (
               <button
                 key={index}
-                onClick={() => handleSuggestionClick(suggestion)}
+                onClick={() => {
+                  console.log('Button clicked for suggestion:', suggestion);
+                  handleSuggestionClick(suggestion);
+                }}
                 className="w-full px-4 py-2 text-left text-white hover:bg-slate-700 transition-colors"
               >
                 {suggestion}
