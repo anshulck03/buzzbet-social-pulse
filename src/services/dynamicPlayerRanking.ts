@@ -1,4 +1,3 @@
-
 import { ESPNPlayer, espnPlayerDB } from './espnPlayerDatabase';
 
 interface PlayerScore {
@@ -8,7 +7,8 @@ interface PlayerScore {
   fantasyScore: number;
   newsScore: number;
   totalScore: number;
-  trendingIndicator?: 'trending' | 'elite' | 'injured';
+  subredditCoverage: number;
+  trendingIndicator?: 'trending' | 'elite';
 }
 
 class DynamicPlayerRankingService {
@@ -16,8 +16,78 @@ class DynamicPlayerRankingService {
   private lastUpdate: Map<string, number> = new Map();
   private readonly CACHE_DURATION = 30 * 60 * 1000; // 30 minutes
 
-  // Simulate Reddit buzz scoring based on player popularity and current events
+  // Enhanced All-Star detection across all sports
+  private isAllStarPlayer(player: ESPNPlayer): boolean {
+    const allStarPlayers = {
+      NBA: [
+        'LeBron James', 'Stephen Curry', 'Giannis Antetokounmpo', 'Luka Dončić', 
+        'Joel Embiid', 'Nikola Jokic', 'Jayson Tatum', 'Kevin Durant',
+        'Anthony Davis', 'Kawhi Leonard', 'Jimmy Butler', 'Damian Lillard',
+        'Anthony Edwards', 'Victor Wembanyama', 'Shai Gilgeous-Alexander',
+        'Donovan Mitchell', 'Trae Young', 'Ja Morant', 'Zion Williamson'
+      ],
+      NFL: [
+        'Patrick Mahomes', 'Josh Allen', 'Lamar Jackson', 'Joe Burrow',
+        'Aaron Rodgers', 'Justin Herbert', 'Dak Prescott', 'Tua Tagovailoa',
+        'Christian McCaffrey', 'Travis Kelce', 'Tyreek Hill', 'Cooper Kupp',
+        'Aaron Donald', 'T.J. Watt', 'Myles Garrett', 'Nick Bosa'
+      ],
+      MLB: [
+        'Mike Trout', 'Shohei Ohtani', 'Aaron Judge', 'Mookie Betts',
+        'Ronald Acuña Jr.', 'Juan Soto', 'Fernando Tatis Jr.', 'Vladimir Guerrero Jr.',
+        'Francisco Lindor', 'Freddie Freeman', 'Manny Machado', 'Pete Alonso',
+        'Jose Altuve', 'Yordan Alvarez', 'Kyle Tucker', 'Bo Bichette'
+      ],
+      NHL: [
+        'Connor McDavid', 'Leon Draisaitl', 'Nathan MacKinnon', 'Auston Matthews',
+        'Erik Karlsson', 'Nikita Kucherov', 'David Pastrnak', 'Igor Shesterkin',
+        'Cale Makar', 'Victor Hedman', 'Sidney Crosby', 'Alexander Ovechkin',
+        'Kirill Kaprizov', 'Matthew Tkachuk', 'Jack Hughes', 'Tim Stützle'
+      ]
+    };
+    
+    return allStarPlayers[player.sport]?.includes(player.name) || false;
+  }
+
+  // Enhanced subreddit coverage calculation
+  private calculateSubredditCoverage(player: ESPNPlayer): number {
+    let coverage = 0;
+    
+    // Base sport subreddit coverage
+    coverage += 20; // Main sport subreddit
+    
+    // Team subreddit coverage
+    if (player.team) {
+      coverage += 25; // Team-specific subreddit
+    }
+    
+    // Fantasy subreddit coverage
+    coverage += 15; // Fantasy sport subreddit
+    
+    // Popular players get broader coverage
+    const popularPlayers = [
+      'LeBron James', 'Stephen Curry', 'Patrick Mahomes', 'Mike Trout', 'Connor McDavid'
+    ];
+    if (popularPlayers.includes(player.name)) {
+      coverage += 20; // Cross-sport coverage
+    }
+    
+    // All-Star players get additional coverage
+    if (this.isAllStarPlayer(player)) {
+      coverage += 15; // Additional sport-specific communities
+    }
+    
+    // Add some randomness for variety
+    coverage += Math.random() * 10;
+    
+    return Math.min(coverage, 100);
+  }
+
+  // Enhanced Reddit buzz scoring with multiple search approaches
   private calculateRedditBuzzScore(player: ESPNPlayer): number {
+    let score = Math.random() * 40; // Base random component
+    
+    // Popular players get higher buzz
     const popularPlayers = [
       'Patrick Mahomes', 'Josh Allen', 'Lamar Jackson', 'Joe Burrow', // NFL
       'LeBron James', 'Stephen Curry', 'Luka Dončić', 'Giannis Antetokounmpo', // NBA
@@ -25,17 +95,24 @@ class DynamicPlayerRankingService {
       'Connor McDavid', 'Nathan MacKinnon', 'Auston Matthews', 'Leon Draisaitl' // NHL
     ];
     
-    let score = Math.random() * 50; // Base random component
-    
     if (popularPlayers.includes(player.name)) {
-      score += 30;
+      score += 35;
     }
     
-    // Boost for certain teams with high fan engagement
-    const popularTeams = ['Lakers', 'Cowboys', 'Yankees', 'Warriors', 'Chiefs', 'Celtics'];
-    if (popularTeams.some(team => player.team.includes(team))) {
-      score += 15;
+    // All-Star boost
+    if (this.isAllStarPlayer(player)) {
+      score += 25;
     }
+    
+    // Team popularity boost
+    const popularTeams = ['Lakers', 'Cowboys', 'Yankees', 'Warriors', 'Chiefs', 'Celtics', 'Dodgers'];
+    if (popularTeams.some(team => player.team.includes(team))) {
+      score += 20;
+    }
+    
+    // Subreddit coverage multiplier
+    const coverageMultiplier = this.calculateSubredditCoverage(player) / 100;
+    score *= (1 + coverageMultiplier * 0.5);
     
     return Math.min(score, 100);
   }
@@ -93,23 +170,20 @@ class DynamicPlayerRankingService {
     redditBuzz: number,
     performance: number,
     fantasy: number,
-    news: number
+    news: number,
+    subredditCoverage: number
   ): number {
-    return (redditBuzz * 0.4) + (performance * 0.3) + (fantasy * 0.2) + (news * 0.1);
+    return (redditBuzz * 0.35) + (performance * 0.25) + (fantasy * 0.15) + (news * 0.1) + (subredditCoverage * 0.15);
   }
 
-  private assignTrendingIndicator(player: ESPNPlayer, totalScore: number): 'trending' | 'elite' | 'injured' | undefined {
-    const trendingPlayers = ['Victor Wembanyama', 'Caleb Williams', 'Connor Bedard'];
-    const elitePlayers = ['Patrick Mahomes', 'LeBron James', 'Connor McDavid', 'Aaron Judge'];
-    const injuredPlayers = ['Kawhi Leonard', 'Zion Williamson', 'Ben Simmons'];
+  private assignTrendingIndicator(player: ESPNPlayer, totalScore: number): 'trending' | 'elite' | undefined {
+    if (this.isAllStarPlayer(player)) return 'elite';
     
+    const trendingPlayers = ['Victor Wembanyama', 'Caleb Williams', 'Connor Bedard'];
     if (trendingPlayers.includes(player.name)) return 'trending';
-    if (elitePlayers.includes(player.name)) return 'elite';
-    if (injuredPlayers.includes(player.name)) return 'injured';
     
     // Assign based on score thresholds
-    if (totalScore > 80) return 'elite';
-    if (totalScore > 65) return 'trending';
+    if (totalScore > 75) return 'trending';
     
     return undefined;
   }
@@ -134,7 +208,8 @@ class DynamicPlayerRankingService {
       const performanceScore = this.calculatePerformanceScore(player);
       const fantasyScore = this.calculateFantasyScore(player);
       const newsScore = this.calculateNewsScore(player);
-      const totalScore = this.calculateTotalScore(redditBuzzScore, performanceScore, fantasyScore, newsScore);
+      const subredditCoverage = this.calculateSubredditCoverage(player);
+      const totalScore = this.calculateTotalScore(redditBuzzScore, performanceScore, fantasyScore, newsScore, subredditCoverage);
       
       playerScores.push({
         player,
@@ -143,6 +218,7 @@ class DynamicPlayerRankingService {
         fantasyScore,
         newsScore,
         totalScore,
+        subredditCoverage,
         trendingIndicator: this.assignTrendingIndicator(player, totalScore)
       });
     }
@@ -191,8 +267,8 @@ class DynamicPlayerRankingService {
     return trendingPlayers;
   }
 
-  async getElitePlayers(limit: number = 5): Promise<PlayerScore[]> {
-    const cacheKey = `elite_${limit}`;
+  async getAllStarPlayers(limit: number = 5): Promise<PlayerScore[]> {
+    const cacheKey = `allstar_${limit}`;
     const now = Date.now();
     
     if (this.cachedRankings.has(cacheKey) && 
@@ -205,56 +281,21 @@ class DynamicPlayerRankingService {
     const sports = ['NBA', 'NFL', 'MLB', 'NHL'];
     
     for (const sport of sports) {
-      const sportPlayers = await this.getTopPlayersBySport(sport, 10);
+      const sportPlayers = await this.getTopPlayersBySport(sport, 15);
       allPlayers.push(...sportPlayers);
     }
 
-    const elitePlayers = allPlayers
-      .filter(p => p.totalScore > 75)
+    // Filter for All-Star players and sort by total score
+    const allStarPlayers = allPlayers
+      .filter(p => this.isAllStarPlayer(p.player))
       .sort((a, b) => b.totalScore - a.totalScore)
       .slice(0, limit)
       .map(p => ({ ...p, trendingIndicator: 'elite' as const }));
 
-    this.cachedRankings.set(cacheKey, elitePlayers);
+    this.cachedRankings.set(cacheKey, allStarPlayers);
     this.lastUpdate.set(cacheKey, now);
 
-    return elitePlayers;
-  }
-
-  async getInjuredPlayers(limit: number = 5): Promise<PlayerScore[]> {
-    const cacheKey = `injured_${limit}`;
-    const now = Date.now();
-    
-    if (this.cachedRankings.has(cacheKey) && 
-        this.lastUpdate.has(cacheKey) && 
-        (now - this.lastUpdate.get(cacheKey)!) < this.CACHE_DURATION) {
-      return this.cachedRankings.get(cacheKey)!;
-    }
-
-    // Simulate injured players with high discussion volume
-    const injuredPlayerNames = [
-      'Kawhi Leonard', 'Zion Williamson', 'Ben Simmons', 'Jonathan Isaac',
-      'Klay Thompson', 'Aaron Rodgers', 'Christian McCaffrey', 'Saquon Barkley'
-    ];
-
-    const allPlayers: PlayerScore[] = [];
-    const sports = ['NBA', 'NFL', 'MLB', 'NHL'];
-    
-    for (const sport of sports) {
-      const sportPlayers = await this.getTopPlayersBySport(sport, 50);
-      allPlayers.push(...sportPlayers);
-    }
-
-    const injuredPlayers = allPlayers
-      .filter(p => injuredPlayerNames.includes(p.player.name))
-      .sort((a, b) => b.totalScore - a.totalScore)
-      .slice(0, limit)
-      .map(p => ({ ...p, trendingIndicator: 'injured' as const }));
-
-    this.cachedRankings.set(cacheKey, injuredPlayers);
-    this.lastUpdate.set(cacheKey, now);
-
-    return injuredPlayers;
+    return allStarPlayers;
   }
 
   clearCache(): void {

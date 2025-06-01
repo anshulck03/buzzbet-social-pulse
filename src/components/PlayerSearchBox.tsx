@@ -72,12 +72,6 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
           case 'elite':
             const elitePlayers = ['LeBron James', 'Stephen Curry', 'Patrick Mahomes', 'Mike Trout', 'Connor McDavid'];
             return elitePlayers.includes(player.name);
-          case 'breaking':
-            return Math.random() > 0.9;
-          case 'injured':
-            return Math.random() > 0.85;
-          case 'rookies':
-            return Math.random() > 0.9;
           case 'NBA':
           case 'NFL':
           case 'MLB':
@@ -226,7 +220,7 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
               <div className="p-6 text-center">
                 <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto mb-2" />
                 <p className="text-slate-300">Loading intelligent player database...</p>
-                <p className="text-slate-500 text-sm">Preparing smart search features...</p>
+                <p className="text-slate-500 text-sm">Preparing enhanced coverage features...</p>
               </div>
             )}
 

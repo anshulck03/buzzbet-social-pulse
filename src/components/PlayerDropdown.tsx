@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Loader2, TrendingUp, Star, Bandage } from 'lucide-react';
+import { Loader2, TrendingUp, Star } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { dynamicPlayerRanking, PlayerScore } from '@/services/dynamicPlayerRanking';
 
@@ -37,10 +37,7 @@ const PlayerDropdown = ({ filterType, onPlayerSelect, isOpen, onClose }: PlayerD
           playerData = await dynamicPlayerRanking.getTrendingPlayers(5);
           break;
         case 'elite':
-          playerData = await dynamicPlayerRanking.getElitePlayers(5);
-          break;
-        case 'injured':
-          playerData = await dynamicPlayerRanking.getInjuredPlayers(5);
+          playerData = await dynamicPlayerRanking.getAllStarPlayers(5);
           break;
         default:
           playerData = [];
@@ -61,8 +58,6 @@ const PlayerDropdown = ({ filterType, onPlayerSelect, isOpen, onClose }: PlayerD
         return <TrendingUp className="w-3 h-3 text-orange-400" />;
       case 'elite':
         return <Star className="w-3 h-3 text-yellow-400" />;
-      case 'injured':
-        return <Bandage className="w-3 h-3 text-red-400" />;
       default:
         return null;
     }
@@ -71,21 +66,19 @@ const PlayerDropdown = ({ filterType, onPlayerSelect, isOpen, onClose }: PlayerD
   const getDescription = () => {
     switch (filterType) {
       case 'NFL':
-        return 'Top 5 NFL players by discussion volume & performance';
+        return 'Top 5 NFL players by multiple subreddit coverage & performance';
       case 'NBA':
-        return 'Top 5 NBA players by buzz & current season stats';
+        return 'Top 5 NBA players by community buzz & current season impact';
       case 'MLB':
-        return 'Top 5 MLB players by mentions & achievements';
+        return 'Top 5 MLB players by discussion volume & achievements';
       case 'NHL':
-        return 'Top 5 NHL players by performance & highlights';
+        return 'Top 5 NHL players by performance & community engagement';
       case 'trending':
-        return 'Players with biggest discussion spike (24-48hrs)';
+        return 'Cross-sport trending players with biggest discussion spikes';
       case 'elite':
-        return 'Top performers across all sports';
-      case 'injured':
-        return 'Most discussed injured players';
+        return 'All-Star caliber players across NFL, NBA, MLB & NHL';
       default:
-        return 'Dynamic player rankings';
+        return 'Dynamic player rankings with enhanced coverage';
     }
   };
 
@@ -101,22 +94,22 @@ const PlayerDropdown = ({ filterType, onPlayerSelect, isOpen, onClose }: PlayerD
         {isLoading ? (
           <div className="p-4 text-center">
             <Loader2 className="w-4 h-4 animate-spin text-blue-400 mx-auto mb-2" />
-            <p className="text-sm text-slate-400">Analyzing current data...</p>
+            <p className="text-sm text-slate-400">Analyzing enhanced coverage data...</p>
           </div>
         ) : players.length > 0 ? (
           <div className="p-2">
-            {players.map((playerScore, index) => (
+            {players.map((playerScore) => (
               <button
                 key={playerScore.player.id}
                 onClick={() => {
                   onPlayerSelect(playerScore.player.name);
                   onClose();
                 }}
-                className="w-full flex items-center justify-between p-2 hover:bg-slate-700/50 rounded text-left transition-all"
+                className="w-full flex items-center justify-between p-3 hover:bg-slate-700/50 rounded-lg text-left transition-all group"
               >
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-white">
+                    <span className="text-sm font-medium text-white group-hover:text-blue-300 transition-colors">
                       {playerScore.player.name}
                     </span>
                     {getStatusIcon(playerScore.trendingIndicator)}

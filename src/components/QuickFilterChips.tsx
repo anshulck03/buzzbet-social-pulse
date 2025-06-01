@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Flame, Star, Activity, X, Zap, Calendar, ChevronDown } from 'lucide-react';
+import { Flame, Star, X, ChevronDown } from 'lucide-react';
 import PlayerDropdown from './PlayerDropdown';
 
 interface QuickFilterChipsProps {
@@ -25,39 +25,18 @@ const QuickFilterChips = ({
   const quickFilters = [
     // Status filters
     { 
-      label: 'Trending', 
+      label: '🔥 Trending', 
       value: 'trending', 
       icon: Flame, 
       color: 'text-orange-400 border-orange-400/50 bg-orange-400/10 hover:bg-orange-400/20',
       hasDropdown: true
     },
     { 
-      label: 'All-Stars', 
+      label: '⭐ All-Stars', 
       value: 'elite', 
       icon: Star, 
       color: 'text-yellow-400 border-yellow-400/50 bg-yellow-400/10 hover:bg-yellow-400/20',
       hasDropdown: true
-    },
-    { 
-      label: 'Breaking News', 
-      value: 'breaking', 
-      icon: Zap, 
-      color: 'text-cyan-400 border-cyan-400/50 bg-cyan-400/10 hover:bg-cyan-400/20',
-      hasDropdown: false
-    },
-    { 
-      label: 'Injured', 
-      value: 'injured', 
-      icon: Activity, 
-      color: 'text-red-400 border-red-400/50 bg-red-400/10 hover:bg-red-400/20',
-      hasDropdown: true
-    },
-    { 
-      label: 'Rookies', 
-      value: 'rookies', 
-      icon: Calendar, 
-      color: 'text-green-400 border-green-400/50 bg-green-400/10 hover:bg-green-400/20',
-      hasDropdown: false
     },
     
     // Sport filters
