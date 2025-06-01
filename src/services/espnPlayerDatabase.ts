@@ -553,21 +553,33 @@ class FreePlayerDatabase {
 
   private calculateMatchScore(player: ESPNPlayer, searchTerm: string): number {
     let score = 0;
+    let hasMatch = false;
     
+    // Check each search term for matches
     for (const term of player.searchTerms) {
       if (term === searchTerm) {
         score += 100;
+        hasMatch = true;
       } else if (term.startsWith(searchTerm)) {
         score += 50;
+        hasMatch = true;
       } else if (term.includes(searchTerm)) {
         score += 25;
+        hasMatch = true;
       }
     }
     
+    // Only return a score if there was at least one match
+    if (!hasMatch) {
+      return 0;
+    }
+    
+    // Bonus points for manual overrides
     if (player.id.startsWith('manual_')) {
       score += 10;
     }
     
+    // Small bonus for NBA players (most popular sport)
     if (player.sport === 'NBA') {
       score += 2;
     }
