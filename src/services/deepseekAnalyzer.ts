@@ -1,4 +1,3 @@
-
 interface DeepSeekPostAnalysis {
   performanceScore: number;
   confidence: number;
@@ -80,6 +79,10 @@ export class DeepSeekAnalyzer {
     });
 
     try {
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
       const response = await fetch(this.baseUrl, {
         method: 'POST',
         headers: {
@@ -95,9 +98,12 @@ export class DeepSeekAnalyzer {
             }
           ],
           temperature: 0.1,
-          max_tokens: 1500
-        })
+          max_tokens: 1000 // Reduced from 1500 to 1000 for faster response
+        }),
+        signal: controller.signal
       });
+
+      clearTimeout(timeoutId);
 
       console.log('DeepSeek API Response Status:', {
         status: response.status,
@@ -135,6 +141,9 @@ export class DeepSeekAnalyzer {
       return data.choices[0].message.content;
     } catch (networkError) {
       console.error('DeepSeek Network Error:', networkError);
+      if (networkError.name === 'AbortError') {
+        throw new Error('DeepSeek API timeout - request took too long');
+      }
       if (networkError instanceof Error) {
         throw new Error(`DeepSeek network error: ${networkError.message}`);
       }
@@ -180,28 +189,24 @@ export class DeepSeekAnalyzer {
     const sport = this.detectSport(title + ' ' + content, subreddit);
     const sportContext = this.getSportContext(sport);
 
-    const prompt = `Analyze this Reddit post about ${playerName} for sports intelligence and performance analysis.
+    // OPTIMIZATION: Shortened prompt for faster processing
+    const prompt = `Analyze this Reddit post about ${playerName} for sports intelligence.
 
-Post Title: "${title}"
-Post Content: "${content}"
-Subreddit: r/${subreddit}
-Sport Context: ${sportContext}
+Post: "${title}" - "${content.substring(0, 300)}..." (Sport: ${sport})
 
-Provide a JSON response with the following structure:
+JSON response:
 {
-  "performanceScore": (number from -10 to +10, where -10=major decline, +10=major improvement),
-  "confidence": (number 0-100 representing analysis confidence),
-  "category": (one of: "injury", "performance", "trade", "team_chemistry", "personal", "fantasy", "general"),
-  "riskLevel": (one of: "low", "medium", "high"),
-  "keyInsights": (array of 2-3 specific findings from this post),
-  "recency": (one of: "breaking", "recent", "old"),
-  "reliability": (one of: "confirmed", "rumor", "speculation"),
-  "sentiment": (one of: "positive", "negative", "neutral"),
-  "sentimentConfidence": (number 0-100 representing sentiment confidence),
+  "performanceScore": (number -10 to +10),
+  "confidence": (0-100),
+  "category": ("injury"|"performance"|"trade"|"team_chemistry"|"personal"|"fantasy"|"general"),
+  "riskLevel": ("low"|"medium"|"high"),
+  "keyInsights": (array of 2 findings),
+  "recency": ("breaking"|"recent"|"old"),
+  "reliability": ("confirmed"|"rumor"|"speculation"),
+  "sentiment": ("positive"|"negative"|"neutral"),
+  "sentimentConfidence": (0-100),
   "sport": "${sport}"
-}
-
-Return only valid JSON, no additional text.`;
+}`;
 
     try {
       const response = await this.makeDeepSeekRequest(prompt);
@@ -291,61 +296,58 @@ Return only valid JSON, no additional text.`;
       return this.cache.get(cacheKey);
     }
 
-    const batchedPosts = posts.slice(0, 12);
+    // OPTIMIZATION: Process fewer posts for faster response
+    const batchedPosts = posts.slice(0, 8); // Reduced from 12 to 8
     const subreddits = [...new Set(batchedPosts.map(p => p.subreddit).filter(Boolean))];
     const primarySport = this.detectSport(batchedPosts.map(p => p.title + ' ' + p.content).join(' '), subreddits.join(' '));
     const sportContext = this.getSportContext(primarySport);
 
+    // OPTIMIZATION: Shortened content for faster processing
     const allPosts = batchedPosts.map((post, index) => 
-      `Post ${index + 1} (r/${post.subreddit}): "${post.title}" - "${post.content.substring(0, 200)}..."`
-    ).join('\n\n');
+      `${index + 1}. (r/${post.subreddit}): "${post.title}" - "${post.content.substring(0, 150)}..."`
+    ).join('\n');
 
-    const prompt = `Analyze these ${batchedPosts.length} Reddit posts about ${playerName} and provide comprehensive sports intelligence analysis with enhanced fantasy and performance insights:
-
-Sport: ${primarySport}
-Sport Context: ${sportContext}
-Subreddits: ${subreddits.join(', ')}
+    // OPTIMIZATION: More concise prompt
+    const prompt = `Analyze ${batchedPosts.length} Reddit posts about ${playerName} (${primarySport}):
 
 ${allPosts}
 
-Provide comprehensive analysis as JSON:
+JSON response:
 {
-  "playerSummary": (2-3 sentence overview of player's current situation),
-  "performanceTrajectory": (one of: "Rising Star", "Proven Performer", "Declining", "Sleeper Pick", "Avoid"),
-  "keyTrends": (array of 3-5 key patterns or trends),
-  "riskFactors": (array of specific concerns or red flags),
-  "opportunities": (array of positive indicators),
-  "fantasyImpact": (fantasy sports relevance assessment),
-  "recommendation": (clear guidance with reasoning),
-  "performanceScore": (number from -10 to +10),
-  "trajectoryConfidence": (number 0-100),
-  "sentiment": (one of: "positive", "negative", "neutral"),
-  "sentimentConfidence": (number 0-100),
+  "playerSummary": (2-sentence overview),
+  "performanceTrajectory": ("Rising Star"|"Proven Performer"|"Declining"|"Sleeper Pick"|"Avoid"),
+  "keyTrends": (array of 3 trends),
+  "riskFactors": (array of 2 concerns),
+  "opportunities": (array of 2 positives),
+  "fantasyImpact": (fantasy assessment),
+  "recommendation": (clear guidance),
+  "performanceScore": (-10 to +10),
+  "trajectoryConfidence": (0-100),
+  "sentiment": ("positive"|"negative"|"neutral"),
+  "sentimentConfidence": (0-100),
   "sport": "${primarySport}",
   "subredditsAnalyzed": ${JSON.stringify(subreddits)},
   "recentPerformance": {
-    "lastThreeGames": (summary of recent game performance vs averages mentioned in discussions),
-    "injuryStatus": (one of: "Healthy", "Questionable", "Doubtful", "Out"),
-    "injuryDescription": (brief injury status or "No injury concerns identified"),
-    "matchupDifficulty": (one of: "Easy", "Moderate", "Tough"),
-    "matchupReasoning": (brief explanation of upcoming matchup difficulty)
+    "lastThreeGames": (performance summary),
+    "injuryStatus": ("Healthy"|"Questionable"|"Doubtful"|"Out"),
+    "injuryDescription": (injury status),
+    "matchupDifficulty": ("Easy"|"Moderate"|"Tough"),
+    "matchupReasoning": (matchup explanation)
   },
   "fantasyInsights": {
-    "startSitRecommendation": (one of: "Must Start", "Start", "Flex", "Sit", "Avoid"),
-    "startSitConfidence": (number 0-100),
-    "tradeValueTrend": (one of: "Rising", "Stable", "Falling"),
-    "tradeValueExplanation": (brief explanation of trade value trend),
-    "restOfSeasonOutlook": (1-2 sentences on expected performance),
-    "pprRelevance": (PPR format specific advice),
-    "dynastyRelevance": (dynasty league specific outlook)
+    "startSitRecommendation": ("Must Start"|"Start"|"Flex"|"Sit"|"Avoid"),
+    "startSitConfidence": (0-100),
+    "tradeValueTrend": ("Rising"|"Stable"|"Falling"),
+    "tradeValueExplanation": (brief explanation),
+    "restOfSeasonOutlook": (season outlook),
+    "pprRelevance": (PPR advice),
+    "dynastyRelevance": (dynasty outlook)
   },
   "breakingNews": {
-    "hasRecentNews": (boolean if any news in last 24-48 hours),
-    "newsItems": (array of recent news items from discussions, max 3)
+    "hasRecentNews": (boolean),
+    "newsItems": (array of recent news, max 2)
   }
-}
-
-Return only valid JSON, no additional text.`;
+}`;
 
     try {
       const response = await this.makeDeepSeekRequest(prompt);
@@ -355,6 +357,7 @@ Return only valid JSON, no additional text.`;
       
       const analysis = JSON.parse(jsonStr);
       
+      // ... keep existing code (result construction and validation) the same
       const result = {
         playerSummary: analysis.playerSummary || 'AI analysis in progress for this player',
         performanceTrajectory: analysis.performanceTrajectory || 'Sleeper Pick',
@@ -397,6 +400,7 @@ Return only valid JSON, no additional text.`;
       return result;
     } catch (error) {
       console.error('Error summarizing posts with DeepSeek:', error);
+      // ... keep existing code (fallback response) the same
       return {
         playerSummary: 'AI processing comprehensive analysis across multiple discussions',
         performanceTrajectory: 'Sleeper Pick',
