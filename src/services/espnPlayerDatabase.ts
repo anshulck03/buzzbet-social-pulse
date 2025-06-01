@@ -15,6 +15,16 @@ export interface ESPNPlayer {
 import { MANUAL_PLAYER_OVERRIDES, ManualPlayer } from '@/data/manualPlayerOverrides';
 import { nbaImageService } from './nbaImageService';
 
+const STORAGE_KEY = 'espn_players_cache';
+const CACHE_VERSION = '1.0';
+const CACHE_EXPIRY_DAYS = 7; // Refresh data weekly
+
+interface CachedPlayerData {
+  players: ESPNPlayer[];
+  timestamp: number;
+  version: string;
+}
+
 class FreePlayerDatabase {
   private players: ESPNPlayer[] = [];
   private isLoaded = false;
@@ -24,8 +34,72 @@ class FreePlayerDatabase {
     if (this.isLoaded) return this.players;
     if (this.loadingPromise) return this.loadingPromise;
 
-    this.loadingPromise = this.fetchAllPlayers();
+    this.loadingPromise = this.loadPlayersWithCache();
     return this.loadingPromise;
+  }
+
+  private async loadPlayersWithCache(): Promise<ESPNPlayer[]> {
+    console.log('Loading player database with cache...');
+
+    // Try to load from cache first
+    const cachedData = this.loadFromCache();
+    if (cachedData) {
+      console.log(`Loaded ${cachedData.length} players from cache`);
+      this.players = cachedData;
+      this.isLoaded = true;
+      this.logPlayerStats();
+      return this.players;
+    }
+
+    // If no cache or expired, fetch fresh data
+    console.log('No valid cache found, fetching fresh data from ESPN APIs...');
+    await this.fetchAllPlayers();
+    
+    // Save to cache
+    this.saveToCache();
+    return this.players;
+  }
+
+  private loadFromCache(): ESPNPlayer[] | null {
+    try {
+      const cached = localStorage.getItem(STORAGE_KEY);
+      if (!cached) return null;
+
+      const data: CachedPlayerData = JSON.parse(cached);
+      
+      // Check version and expiry
+      if (data.version !== CACHE_VERSION) {
+        console.log('Cache version mismatch, will refresh');
+        return null;
+      }
+
+      const daysSinceCache = (Date.now() - data.timestamp) / (1000 * 60 * 60 * 24);
+      if (daysSinceCache > CACHE_EXPIRY_DAYS) {
+        console.log(`Cache expired (${daysSinceCache.toFixed(1)} days old), will refresh`);
+        return null;
+      }
+
+      console.log(`Cache is ${daysSinceCache.toFixed(1)} days old, using cached data`);
+      return data.players;
+    } catch (error) {
+      console.error('Error loading from cache:', error);
+      return null;
+    }
+  }
+
+  private saveToCache(): void {
+    try {
+      const cacheData: CachedPlayerData = {
+        players: this.players,
+        timestamp: Date.now(),
+        version: CACHE_VERSION
+      };
+      
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(cacheData));
+      console.log(`Saved ${this.players.length} players to cache`);
+    } catch (error) {
+      console.error('Error saving to cache:', error);
+    }
   }
 
   private async fetchAllPlayers(): Promise<ESPNPlayer[]> {
@@ -62,10 +136,15 @@ class FreePlayerDatabase {
     }
 
     this.isLoaded = true;
+    this.logPlayerStats();
+    return this.players;
+  }
+
+  private logPlayerStats(): void {
     const totalPlayers = this.players.length;
-    const sportCounts = sports.map(sport => ({
-      sport: sport.name,
-      count: this.getPlayersBySport(sport.name).length
+    const sportCounts = ['NBA', 'NFL', 'MLB', 'NHL'].map(sport => ({
+      sport,
+      count: this.getPlayersBySport(sport).length
     }));
     
     console.log(`Total players loaded: ${totalPlayers}`);
@@ -73,7 +152,12 @@ class FreePlayerDatabase {
       console.log(`${sport}: ${count} players`);
     });
     
-    return this.players;
+    console.log('=== PLAYER DATABASE STATS ===');
+    console.log(`Total players: ${totalPlayers}`);
+    sportCounts.forEach(({ sport, count }) => {
+      console.log(`${sport} players: ${count}`);
+    });
+    console.log('============================');
   }
 
   private async loadSportPlayers(sport: 'NBA' | 'NFL' | 'MLB' | 'NHL', sportPath: string): Promise<void> {
@@ -443,10 +527,17 @@ class FreePlayerDatabase {
   }
 
   async refreshPlayers(): Promise<ESPNPlayer[]> {
+    // Clear cache and reload
+    localStorage.removeItem(STORAGE_KEY);
     this.isLoaded = false;
     this.loadingPromise = null;
     this.players = [];
     return this.loadAllPlayers();
+  }
+
+  clearCache(): void {
+    localStorage.removeItem(STORAGE_KEY);
+    console.log('Player cache cleared');
   }
 }
 

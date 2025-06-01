@@ -1,8 +1,8 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, RefreshCw } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { ESPNPlayer, espnPlayerDB } from '@/services/espnPlayerDatabase';
 
 interface PlayerSearchBoxProps {
@@ -18,6 +18,8 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [searchResults, setSearchResults] = useState<ESPNPlayer[]>([]);
   const [dbStats, setDbStats] = useState<{total: number, nba: number, nfl: number, mlb: number, nhl: number} | null>(null);
+  const [isDbLoading, setIsDbLoading] = useState(true);
+  const [cacheStatus, setCacheStatus] = useState<'loading' | 'cached' | 'fresh'>('loading');
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
   
@@ -26,6 +28,14 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
     const loadStats = async () => {
       try {
         console.log('Loading player database...');
+        setIsDbLoading(true);
+        
+        // Check if data will come from cache
+        const hasCache = localStorage.getItem('espn_players_cache');
+        if (hasCache) {
+          setCacheStatus('cached');
+        }
+        
         await espnPlayerDB.loadAllPlayers();
         
         const total = espnPlayerDB.getPlayerCount();
@@ -35,6 +45,11 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
         const nhl = espnPlayerDB.getPlayersBySport('NHL').length;
         
         setDbStats({ total, nba, nfl, mlb, nhl });
+        setIsDbLoading(false);
+        
+        if (!hasCache) {
+          setCacheStatus('fresh');
+        }
         
         console.log('=== PLAYER DATABASE STATS ===');
         console.log(`Total players: ${total}`);
@@ -45,6 +60,7 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
         console.log('============================');
       } catch (error) {
         console.error('Error loading player database:', error);
+        setIsDbLoading(false);
       }
     };
     
@@ -146,6 +162,28 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
     inputRef.current?.focus();
   };
 
+  const handleRefreshCache = async () => {
+    setIsDbLoading(true);
+    setCacheStatus('loading');
+    try {
+      await espnPlayerDB.refreshPlayers();
+      
+      const total = espnPlayerDB.getPlayerCount();
+      const nba = espnPlayerDB.getPlayersBySport('NBA').length;
+      const nfl = espnPlayerDB.getPlayersBySport('NFL').length;
+      const mlb = espnPlayerDB.getPlayersBySport('MLB').length;
+      const nhl = espnPlayerDB.getPlayersBySport('NHL').length;
+      
+      setDbStats({ total, nba, nfl, mlb, nhl });
+      setCacheStatus('fresh');
+      console.log('Player database refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing player database:', error);
+    } finally {
+      setIsDbLoading(false);
+    }
+  };
+
   return (
     <div className="relative w-full max-w-2xl mx-auto">
       <form onSubmit={handleSubmit} className="relative">
@@ -163,7 +201,7 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
               }
             }}
             className="pl-10 pr-10 py-3 bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
-            disabled={isLoading}
+            disabled={isLoading || isDbLoading}
           />
           {query && (
             <button
@@ -212,11 +250,35 @@ const PlayerSearchBox = ({ onPlayerSelect, value, onSearch, onClear, isLoading =
         <p className="text-xs text-slate-400">
           Multi-sport analysis • Team + fantasy subreddits • Major sport communities • Cross-platform sentiment • 200+ sports communities analyzed
         </p>
-        {dbStats && (
-          <p className="text-xs text-slate-500 mt-1">
-            Database: {dbStats.total} players ({dbStats.nba} NBA, {dbStats.nfl} NFL, {dbStats.mlb} MLB, {dbStats.nhl} NHL)
-          </p>
-        )}
+        
+        <div className="flex items-center justify-center gap-2 mt-1">
+          {dbStats && (
+            <p className="text-xs text-slate-500">
+              Database: {dbStats.total} players ({dbStats.nba} NBA, {dbStats.nfl} NFL, {dbStats.mlb} MLB, {dbStats.nhl} NHL)
+              {cacheStatus === 'cached' && ' • Loaded from cache'}
+              {cacheStatus === 'fresh' && ' • Fresh data'}
+            </p>
+          )}
+          
+          {isDbLoading && (
+            <div className="flex items-center gap-1 text-xs text-slate-400">
+              <RefreshCw className="w-3 h-3 animate-spin" />
+              Loading players...
+            </div>
+          )}
+          
+          {!isDbLoading && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleRefreshCache}
+              className="text-xs text-slate-500 hover:text-slate-300 h-auto py-0 px-2"
+            >
+              <RefreshCw className="w-3 h-3 mr-1" />
+              Refresh
+            </Button>
+          )}
+        </div>
       </div>
     </div>
   );
