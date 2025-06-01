@@ -1,4 +1,3 @@
-
 export interface ESPNPlayer {
   id: string;
   name: string;
@@ -38,16 +37,20 @@ class FreePlayerDatabase {
     }));
 
     console.log(`Added ${MANUAL_PLAYER_OVERRIDES.length} manual player overrides`);
+    
+    // Count NBA players in manual overrides
+    const nbaManualCount = MANUAL_PLAYER_OVERRIDES.filter(p => p.sport === 'NBA').length;
+    console.log(`NBA manual overrides: ${nbaManualCount}`);
 
     // Direct athlete endpoints (primary method)
     const athleteEndpoints = [
-      { sport: 'NFL' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/athletes' },
       { sport: 'NBA' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/basketball/nba/athletes' },
+      { sport: 'NFL' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/football/nfl/athletes' },
       { sport: 'NHL' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/hockey/nhl/athletes' },
       { sport: 'MLB' as const, url: 'https://site.web.api.espn.com/apis/site/v2/sports/baseball/mlb/athletes' }
     ];
 
-    // Try direct athlete endpoints first
+    // Try direct athlete endpoints first with enhanced NBA support
     for (const endpoint of athleteEndpoints) {
       console.log(`Loading ${endpoint.sport} players from athlete endpoint...`);
       let sportPlayerCount = 0;
@@ -62,6 +65,11 @@ class FreePlayerDatabase {
         }
 
         const data = await response.json();
+        console.log(`${endpoint.sport} API response structure:`, {
+          hasAthletes: !!data.athletes,
+          athletesLength: data.athletes?.length || 0,
+          sampleAthlete: data.athletes?.[0] || null
+        });
         
         if (data.athletes && Array.isArray(data.athletes)) {
           data.athletes.forEach((athlete: any) => {
@@ -80,7 +88,7 @@ class FreePlayerDatabase {
                   lastName: athlete.lastName || '',
                   team: athlete.team?.displayName || athlete.team?.name || 'Unknown Team',
                   teamAbbr: athlete.team?.abbreviation || '',
-                  position: athlete.position?.displayName || athlete.position?.name || athlete.position?.abbreviation || 'N/A',
+                  position: this.normalizePosition(athlete.position?.displayName || athlete.position?.name || athlete.position?.abbreviation || 'N/A', endpoint.sport),
                   sport: endpoint.sport,
                   headshot: athlete.headshot?.href || '',
                   searchTerms: this.createSearchTerms(
@@ -103,9 +111,130 @@ class FreePlayerDatabase {
       }
     }
 
+    // Additional NBA-specific API calls to ensure complete coverage
+    if (this.getPlayersBySport('NBA').length < 400) {
+      console.log('NBA player count seems low, trying additional NBA endpoints...');
+      await this.loadAdditionalNBAPlayers();
+    }
+
     this.isLoaded = true;
-    console.log(`Total players loaded: ${this.players.length} (including ${MANUAL_PLAYER_OVERRIDES.length} manual overrides)`);
+    const totalPlayers = this.players.length;
+    const nbaPlayers = this.getPlayersBySport('NBA').length;
+    const nflPlayers = this.getPlayersBySport('NFL').length;
+    const mlbPlayers = this.getPlayersBySport('MLB').length;
+    const nhlPlayers = this.getPlayersBySport('NHL').length;
+    
+    console.log(`Total players loaded: ${totalPlayers}`);
+    console.log(`Sport breakdown - NBA: ${nbaPlayers}, NFL: ${nflPlayers}, MLB: ${mlbPlayers}, NHL: ${nhlPlayers}`);
+    
     return this.players;
+  }
+
+  private async loadAdditionalNBAPlayers(): Promise<void> {
+    console.log('Loading additional NBA players from team rosters...');
+    let additionalNBACount = 0;
+
+    try {
+      // Get all NBA team IDs
+      const teamsUrl = 'https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams';
+      const teamsResponse = await fetch(teamsUrl);
+      
+      if (!teamsResponse.ok) {
+        console.warn(`Failed to load NBA teams: ${teamsResponse.status}`);
+        return;
+      }
+
+      const teamsData = await teamsResponse.json();
+      console.log('NBA teams API response:', teamsData);
+      
+      // Extract team IDs
+      const teamIds: number[] = [];
+      if (teamsData.sports?.[0]?.leagues?.[0]?.teams) {
+        teamsData.sports[0].leagues[0].teams.forEach((teamObj: any) => {
+          if (teamObj.team?.id) {
+            teamIds.push(parseInt(teamObj.team.id));
+          }
+        });
+      }
+
+      console.log(`Found ${teamIds.length} NBA teams for additional roster loading`);
+
+      // Fetch roster for each NBA team
+      for (const teamId of teamIds.slice(0, 30)) { // Limit to 30 teams max
+        try {
+          const rosterUrl = `https://site.api.espn.com/apis/site/v2/sports/basketball/nba/teams/${teamId}/roster`;
+          const rosterResponse = await fetch(rosterUrl);
+          
+          if (!rosterResponse.ok) {
+            console.warn(`Failed to load NBA team ${teamId} roster: ${rosterResponse.status}`);
+            continue;
+          }
+
+          const rosterData = await rosterResponse.json();
+          
+          // Handle nested structure: athletes[*].items[*]
+          if (rosterData.athletes && Array.isArray(rosterData.athletes)) {
+            rosterData.athletes.forEach((athleteGroup: any) => {
+              if (athleteGroup.items && Array.isArray(athleteGroup.items)) {
+                athleteGroup.items.forEach((athlete: any) => {
+                  if (athlete.fullName || athlete.displayName) {
+                    // Check if this player already exists
+                    const existingPlayer = this.players.find(p => 
+                      p.name.toLowerCase() === (athlete.fullName || athlete.displayName || '').toLowerCase() &&
+                      p.sport === 'NBA'
+                    );
+                    
+                    if (!existingPlayer) {
+                      this.players.push({
+                        id: `NBA_roster_${athlete.id}`,
+                        name: athlete.fullName || athlete.displayName || '',
+                        firstName: athlete.firstName || '',
+                        lastName: athlete.lastName || '',
+                        team: rosterData.team?.displayName || 'Unknown Team',
+                        teamAbbr: rosterData.team?.abbreviation || '',
+                        position: this.normalizePosition(athlete.position?.name || athlete.position?.abbreviation || 'N/A', 'NBA'),
+                        sport: 'NBA',
+                        headshot: athlete.headshot?.href || '',
+                        searchTerms: this.createSearchTerms(
+                          athlete.fullName || athlete.displayName || '', 
+                          athlete.firstName || '', 
+                          athlete.lastName || ''
+                        )
+                      });
+                      additionalNBACount++;
+                    }
+                  }
+                });
+              }
+            });
+          }
+        } catch (error) {
+          console.warn(`Error loading NBA team ${teamId} roster:`, error);
+        }
+        
+        // Small delay to respect ESPN's servers
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
+      
+      console.log(`Loaded ${additionalNBACount} additional NBA players from team rosters`);
+    } catch (error) {
+      console.error('Error loading additional NBA players:', error);
+    }
+  }
+
+  private normalizePosition(position: string, sport: string): string {
+    if (sport === 'NBA') {
+      // Normalize NBA positions
+      const pos = position.toUpperCase();
+      if (pos.includes('POINT') || pos === 'PG') return 'PG';
+      if (pos.includes('SHOOTING') || pos === 'SG') return 'SG';
+      if (pos.includes('SMALL') || pos === 'SF') return 'SF';
+      if (pos.includes('POWER') || pos === 'PF') return 'PF';
+      if (pos.includes('CENTER') || pos === 'C') return 'C';
+      if (pos.includes('GUARD') || pos === 'G') return 'G';
+      if (pos.includes('FORWARD') || pos === 'F') return 'F';
+    }
+    return position;
   }
 
   private async loadSportFromTeamRosters(sport: 'NBA' | 'NFL' | 'MLB' | 'NHL'): Promise<void> {
@@ -176,7 +305,7 @@ class FreePlayerDatabase {
                         lastName: athlete.lastName || '',
                         team: rosterData.team?.displayName || 'Unknown Team',
                         teamAbbr: rosterData.team?.abbreviation || '',
-                        position: athlete.position?.name || athlete.position?.abbreviation || 'N/A',
+                        position: this.normalizePosition(athlete.position?.name || athlete.position?.abbreviation || 'N/A', sport),
                         sport: sport,
                         headshot: athlete.headshot?.href || '',
                         searchTerms: this.createSearchTerms(
@@ -215,7 +344,7 @@ class FreePlayerDatabase {
       terms.push(`${firstName} ${lastName}`.toLowerCase());
       terms.push(lastName.toLowerCase());
       
-      // Common nickname variations
+      // Common nickname variations for NBA players
       const nicknameMap: Record<string, string[]> = {
         'Anthony': ['ant', 'tony'],
         'Christopher': ['chris'],
@@ -234,7 +363,11 @@ class FreePlayerDatabase {
         'Daniel': ['dan', 'danny'],
         'David': ['dave', 'davey'],
         'Joshua': ['josh'],
-        'Thomas': ['tom', 'tommy']
+        'Thomas': ['tom', 'tommy'],
+        'Stephen': ['steph'],
+        'LeBron': ['lebron', 'king james', 'the king'],
+        'Giannis': ['greek freak'],
+        'Victor': ['wemby']
       };
 
       if (nicknameMap[firstName]) {
@@ -260,9 +393,13 @@ class FreePlayerDatabase {
       }
     }
     
-    // Sort by match score (higher = better match)
+    // Sort by match score (higher = better match), with manual overrides getting slight boost
     return matches
-      .sort((a, b) => (b.matchScore || 0) - (a.matchScore || 0))
+      .sort((a, b) => {
+        const scoreA = (a.matchScore || 0) + (a.id.includes('manual') ? 5 : 0);
+        const scoreB = (b.matchScore || 0) + (b.id.includes('manual') ? 5 : 0);
+        return scoreB - scoreA;
+      })
       .slice(0, limit);
   }
 
@@ -282,6 +419,11 @@ class FreePlayerDatabase {
     // Boost score for manual overrides (they're likely more accurate/current)
     if (player.id.startsWith('manual_')) {
       score += 10;
+    }
+    
+    // Additional boost for NBA players to improve their search ranking
+    if (player.sport === 'NBA') {
+      score += 2;
     }
     
     return score;

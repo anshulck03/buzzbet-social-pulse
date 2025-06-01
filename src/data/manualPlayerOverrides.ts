@@ -1,4 +1,3 @@
-
 export interface ManualPlayer {
   id: string;
   name: string;
@@ -12,7 +11,11 @@ export interface ManualPlayer {
   searchTerms: string[];
 }
 
-export const MANUAL_PLAYER_OVERRIDES: ManualPlayer[] = [
+// Import NBA player overrides
+import { NBA_PLAYER_OVERRIDES } from './nbaPlayerOverrides';
+
+// NFL player overrides (keeping existing ones for now)
+const NFL_PLAYER_OVERRIDES: ManualPlayer[] = [
   // Arizona Cardinals
   { id: 'NFL_manual_isaiah_adams', name: 'Isaiah Adams', firstName: 'Isaiah', lastName: 'Adams', team: 'Arizona Cardinals', teamAbbr: 'ARI', position: 'Guard', sport: 'NFL', headshot: '', searchTerms: ['isaiah adams', 'adams'] },
   { id: 'NFL_manual_andre_baccellia', name: 'Andre Baccellia', firstName: 'Andre', lastName: 'Baccellia', team: 'Arizona Cardinals', teamAbbr: 'ARI', position: 'Wide Receiver', sport: 'NFL', headshot: '', searchTerms: ['andre baccellia', 'baccellia'] },
@@ -60,7 +63,7 @@ export const MANUAL_PLAYER_OVERRIDES: ManualPlayer[] = [
   { id: 'NFL_manual_budda_baker', name: 'Budda Baker', firstName: 'Budda', lastName: 'Baker', team: 'Arizona Cardinals', teamAbbr: 'ARI', position: 'Safety', sport: 'NFL', headshot: '', searchTerms: ['budda baker', 'baker'] },
   { id: 'NFL_manual_joey_blount', name: 'Joey Blount', firstName: 'Joey', lastName: 'Blount', team: 'Arizona Cardinals', teamAbbr: 'ARI', position: 'Safety', sport: 'NFL', headshot: '', searchTerms: ['joey blount', 'blount'] },
   
-  // Atlanta Falcons (continuing with key players to avoid making file too long)
+  // Atlanta Falcons (continuing with key players)
   { id: 'NFL_manual_kirk_cousins', name: 'Kirk Cousins', firstName: 'Kirk', lastName: 'Cousins', team: 'Atlanta Falcons', teamAbbr: 'ATL', position: 'Quarterback', sport: 'NFL', headshot: '', searchTerms: ['kirk cousins', 'cousins'] },
   { id: 'NFL_manual_drake_london', name: 'Drake London', firstName: 'Drake', lastName: 'London', team: 'Atlanta Falcons', teamAbbr: 'ATL', position: 'Wide Receiver', sport: 'NFL', headshot: '', searchTerms: ['drake london', 'london'] },
   { id: 'NFL_manual_kyle_pitts', name: 'Kyle Pitts', firstName: 'Kyle', lastName: 'Pitts', team: 'Atlanta Falcons', teamAbbr: 'ATL', position: 'Tight End', sport: 'NFL', headshot: '', searchTerms: ['kyle pitts', 'pitts'] },
@@ -83,4 +86,10 @@ export const MANUAL_PLAYER_OVERRIDES: ManualPlayer[] = [
   { id: 'NFL_manual_james_cook', name: 'James Cook', firstName: 'James', lastName: 'Cook', team: 'Buffalo Bills', teamAbbr: 'BUF', position: 'Running Back', sport: 'NFL', headshot: '', searchTerms: ['james cook', 'cook'] },
   { id: 'NFL_manual_keon_coleman', name: 'Keon Coleman', firstName: 'Keon', lastName: 'Coleman', team: 'Buffalo Bills', teamAbbr: 'BUF', position: 'Wide Receiver', sport: 'NFL', headshot: '', searchTerms: ['keon coleman', 'coleman'] },
   { id: 'NFL_manual_ray_davis', name: 'Ray Davis', firstName: 'Ray', lastName: 'Davis', team: 'Buffalo Bills', teamAbbr: 'BUF', position: 'Running Back', sport: 'NFL', headshot: '', searchTerms: ['ray davis', 'davis'] }
+];
+
+// Combine all manual player overrides
+export const MANUAL_PLAYER_OVERRIDES: ManualPlayer[] = [
+  ...NBA_PLAYER_OVERRIDES,
+  ...NFL_PLAYER_OVERRIDES
 ];
