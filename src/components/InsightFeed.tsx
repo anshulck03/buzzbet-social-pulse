@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { redditApi, RedditPost, RedditComment } from '@/services/redditApi';
 import { ESPNPlayer } from '@/services/espnPlayerDatabase';
+import EnhancedPlayerCard from './EnhancedPlayerCard';
 
 interface InsightFeedProps {
   player: { name: string; playerData?: ESPNPlayer } | null;
@@ -59,6 +60,19 @@ const InsightFeed = ({ player }: InsightFeedProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Player Card - Show when we have player data */}
+      {player?.playerData && (
+        <Card className="bg-slate-800/50 border-slate-700">
+          <CardContent className="p-4">
+            <EnhancedPlayerCard 
+              player={player.playerData} 
+              onClick={() => {}} 
+              compact={false}
+            />
+          </CardContent>
+        </Card>
+      )}
+
       {/* Data Sources Status */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
@@ -110,6 +124,14 @@ const InsightFeed = ({ player }: InsightFeedProps) => {
             <MessageCircle className="w-5 h-5 mr-2 text-orange-400" />
             Reddit Insights
           </CardTitle>
+          <div className="text-sm text-slate-400">
+            <p className="mb-2">Multi-sport discussions, fantasy advice, injury reports</p>
+            <div className="space-y-1">
+              <p>• Team-specific community posts</p>
+              <p>• Fantasy sports insights across leagues</p>
+              <p>• Real-time sentiment analysis</p>
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {error && (
