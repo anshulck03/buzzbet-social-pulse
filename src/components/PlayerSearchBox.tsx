@@ -1,11 +1,14 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Search, Star, User, Loader2 } from 'lucide-react';
+import { Search, Loader2, Zap } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { espnPlayerDB, ESPNPlayer } from '@/services/espnPlayerDatabase';
+import { smartSearchService } from '@/services/smartSearchService';
+import EnhancedPlayerCard from '@/components/EnhancedPlayerCard';
+import QuickFilterChips from '@/components/QuickFilterChips';
+import TrendingPlayersSection from '@/components/TrendingPlayersSection';
 
 interface PlayerSearchBoxProps {
   onPlayerSelect: (player: { name: string; playerData?: ESPNPlayer }) => void;
@@ -19,10 +22,8 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [dbLoaded, setDbLoaded] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-  
-  const [recentSearches] = useState([
-    'LeBron James', 'Patrick Mahomes', 'Aaron Judge', 'Stephen Curry', 'Josh Allen', 'Mike Trout'
-  ]);
+  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [isSmartSearch, setIsSmartSearch] = useState(false);
 
   const inputRef = useRef<HTMLDivElement>(null);
 
@@ -57,7 +58,32 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
   const handlePlayerClick = (playerName: string, playerData?: ESPNPlayer) => {
     setSearchTerm(playerName);
     setShowSuggestions(false);
+    setActiveFilter(null);
     onPlayerSelect({ name: playerName, playerData });
+  };
+
+  const filterPlayers = (players: ESPNPlayer[], filter: string): ESPNPlayer[] => {
+    switch (filter) {
+      case 'trending':
+        return players.filter(p => ['LeBron James', 'Patrick Mahomes', 'Stephen Curry'].includes(p.name));
+      case 'elite':
+        const elitePlayers = ['LeBron James', 'Stephen Curry', 'Patrick Mahomes', 'Mike Trout', 'Connor McDavid'];
+        return players.filter(p => elitePlayers.includes(p.name));
+      case 'NBA':
+      case 'NFL':
+      case 'MLB':
+      case 'NHL':
+        return players.filter(p => p.sport === filter);
+      case 'QB':
+        return players.filter(p => p.sport === 'NFL' && (p.position.includes('QB') || p.position.includes('Quarterback')));
+      case 'PG':
+        return players.filter(p => p.sport === 'NBA' && (p.position.includes('PG') || p.position.includes('Point')));
+      case 'injured':
+        // Simulate injured players filter
+        return players.filter(p => Math.random() > 0.8);
+      default:
+        return players;
+    }
   };
 
   const debouncedSearch = (query: string) => {
@@ -67,12 +93,24 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
 
     const timeout = setTimeout(() => {
       if (query.length >= 2 && dbLoaded) {
-        const results = espnPlayerDB.searchPlayers(query, 8);
-        setSuggestions(results);
+        const smartResult = smartSearchService.enhanceQuery(query);
+        setIsSmartSearch(smartResult.enhancedQuery !== query || smartResult.isShortcut);
+        
+        if (smartResult.isShortcut) {
+          // Handle special search shortcuts
+          const allPlayers = Array.from({ length: 100 }, (_, i) => espnPlayerDB.searchPlayers('a', 100)[i]).filter(Boolean);
+          const filtered = filterPlayers(allPlayers, smartResult.shortcutData?.value || '');
+          setSuggestions(filtered.slice(0, 8));
+        } else {
+          const results = espnPlayerDB.searchPlayers(smartResult.enhancedQuery, 8);
+          const finalResults = activeFilter ? filterPlayers(results, activeFilter) : results;
+          setSuggestions(finalResults);
+        }
       } else {
         setSuggestions([]);
+        setIsSmartSearch(false);
       }
-    }, 300);
+    }, 200);
 
     setSearchTimeout(timeout);
   };
@@ -95,17 +133,18 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchTerm.trim()) {
-      handlePlayerClick(searchTerm.trim());
+      const smartResult = smartSearchService.enhanceQuery(searchTerm.trim());
+      handlePlayerClick(smartResult.enhancedQuery);
     }
   };
 
-  const getSportColor = (sport: string) => {
-    switch (sport) {
-      case 'NBA': return 'text-orange-400 border-orange-400';
-      case 'NFL': return 'text-green-400 border-green-400';
-      case 'MLB': return 'text-blue-400 border-blue-400';
-      case 'NHL': return 'text-purple-400 border-purple-400';
-      default: return 'text-slate-400 border-slate-400';
+  const handleFilterSelect = (filter: string) => {
+    setActiveFilter(filter === activeFilter ? null : filter);
+    if (filter !== activeFilter) {
+      // Apply filter to current suggestions
+      const filtered = filterPlayers(suggestions.length > 0 ? suggestions : espnPlayerDB.searchPlayers('', 50), filter);
+      setSuggestions(filtered.slice(0, 8));
+      setShowSuggestions(true);
     }
   };
 
@@ -116,18 +155,28 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
           <Input
             type="text"
-            placeholder={dbLoaded ? "Search any NBA, NFL, MLB, or NHL player..." : "Loading player database..."}
+            placeholder={dbLoaded ? "Search players, try nicknames, teams, or 'NBA centers'..." : "Loading intelligent player search..."}
             value={searchTerm}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
             disabled={isLoading}
-            className="pl-12 pr-4 py-4 text-lg bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500"
+            className="pl-12 pr-12 py-4 text-lg bg-slate-800 border-slate-600 text-white placeholder-slate-400 focus:border-blue-500 focus:ring-blue-500"
           />
           {isLoading && (
             <Loader2 className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-blue-400 animate-spin" />
           )}
+          {isSmartSearch && !isLoading && (
+            <Zap className="absolute right-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-yellow-400" />
+          )}
         </div>
       </form>
+
+      {/* Quick Filter Chips */}
+      {dbLoaded && (
+        <div className="mt-3">
+          <QuickFilterChips onFilterSelect={handleFilterSelect} />
+        </div>
+      )}
 
       {showSuggestions && (
         <Card className="absolute top-full left-0 right-0 mt-2 bg-slate-800 border-slate-600 z-50 max-h-96 overflow-y-auto">
@@ -136,53 +185,43 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
             {isLoading && (
               <div className="p-6 text-center">
                 <Loader2 className="w-6 h-6 animate-spin text-blue-400 mx-auto mb-2" />
-                <p className="text-slate-300">Loading player database...</p>
-                <p className="text-slate-500 text-sm">Fetching players from ESPN...</p>
+                <p className="text-slate-300">Loading intelligent player database...</p>
+                <p className="text-slate-500 text-sm">Preparing smart search features...</p>
               </div>
             )}
 
-            {/* Database load error */}
-            {!isLoading && !dbLoaded && (
-              <div className="p-6 text-center">
-                <p className="text-red-300 mb-2">Failed to load player database</p>
-                <p className="text-slate-500 text-sm">You can still search manually</p>
+            {/* Smart search indicator */}
+            {isSmartSearch && dbLoaded && searchTerm.length >= 2 && (
+              <div className="p-3 bg-yellow-400/10 border-b border-yellow-400/20">
+                <div className="flex items-center text-yellow-400 text-sm">
+                  <Zap className="w-4 h-4 mr-2" />
+                  Smart search enhanced your query
+                </div>
               </div>
             )}
 
-            {/* Autocomplete suggestions */}
+            {/* Player suggestions */}
             {dbLoaded && searchTerm.length >= 2 && suggestions.length > 0 && (
-              <div className="p-4 border-b border-slate-700">
-                <p className="text-sm text-slate-400 mb-3 flex items-center">
-                  <User className="w-4 h-4 mr-2" />
-                  Player Suggestions ({suggestions.length})
+              <div className="p-4">
+                <p className="text-sm text-slate-400 mb-3">
+                  {activeFilter ? `Filtered Results (${suggestions.length})` : `Players (${suggestions.length})`}
+                  {activeFilter && (
+                    <Badge variant="outline" className="ml-2 text-xs text-blue-400 border-blue-400">
+                      {activeFilter}
+                    </Badge>
+                  )}
                 </p>
-                {suggestions.map((player, index) => (
-                  <button
-                    key={player.id}
-                    onClick={() => handlePlayerClick(player.name, player)}
-                    className="block w-full text-left p-3 hover:bg-slate-700 rounded mb-2 border border-slate-600"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="w-8 h-8">
-                          <AvatarImage src={player.headshot} alt={player.name} />
-                          <AvatarFallback className="bg-slate-700 text-slate-300 text-xs">
-                            {player.name.split(' ').map(n => n[0]).join('')}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="text-white font-medium">{player.name}</p>
-                          <p className="text-sm text-slate-400">
-                            {player.position} • {player.team}
-                          </p>
-                        </div>
-                      </div>
-                      <Badge variant="outline" className={`text-xs ${getSportColor(player.sport)}`}>
-                        {player.sport}
-                      </Badge>
-                    </div>
-                  </button>
-                ))}
+                <div className="space-y-2">
+                  {suggestions.map((player, index) => (
+                    <EnhancedPlayerCard
+                      key={player.id}
+                      player={player}
+                      onClick={() => handlePlayerClick(player.name, player)}
+                      showTrending={activeFilter === 'trending'}
+                      compact={true}
+                    />
+                  ))}
+                </div>
               </div>
             )}
 
@@ -190,43 +229,27 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
             {dbLoaded && searchTerm.length >= 2 && suggestions.length === 0 && (
               <div className="p-4 border-b border-slate-700">
                 <p className="text-slate-400 text-sm">No players found for "{searchTerm}"</p>
+                <p className="text-slate-500 text-xs mt-1">Try nicknames, team abbreviations, or positions</p>
               </div>
             )}
 
-            {/* Recent searches when no input */}
+            {/* Trending and popular when no search */}
             {dbLoaded && searchTerm === '' && (
               <div className="p-4">
-                <p className="text-sm text-slate-400 mb-3 flex items-center">
-                  <Star className="w-4 h-4 mr-2" />
-                  Try Searching For
-                </p>
-                {recentSearches.map((search, index) => (
-                  <button
-                    key={index}
-                    onClick={() => handlePlayerClick(search)}
-                    className="block w-full text-left px-2 py-2 text-slate-300 hover:bg-slate-700 rounded text-sm"
-                  >
-                    {search}
-                  </button>
-                ))}
-                <div className="mt-4 p-3 bg-slate-900/50 rounded-lg">
-                  <p className="text-xs text-slate-500">
-                    💡 Database includes {espnPlayerDB.getPlayerCount().toLocaleString()} active players from NBA, NFL, MLB, and NHL
-                  </p>
-                </div>
+                <TrendingPlayersSection onPlayerSelect={handlePlayerClick} />
               </div>
             )}
             
-            {/* Search any name option */}
+            {/* Enhanced search any name option */}
             {dbLoaded && searchTerm !== '' && (
-              <div className="p-4">
+              <div className="p-4 border-t border-slate-700">
                 <button
                   onClick={() => handlePlayerClick(searchTerm)}
-                  className="w-full flex items-center justify-between p-3 hover:bg-slate-700 rounded text-left border border-slate-600"
+                  className="w-full flex items-center justify-between p-3 hover:bg-slate-700/50 rounded-lg text-left border border-slate-600/50 hover:border-blue-500/50 transition-all"
                 >
                   <div>
                     <p className="text-white font-medium">Search for "{searchTerm}"</p>
-                    <p className="text-sm text-slate-400">Press Enter or click to search</p>
+                    <p className="text-sm text-slate-400">AI-powered sports intelligence analysis</p>
                   </div>
                   <Search className="w-4 h-4 text-slate-400" />
                 </button>
