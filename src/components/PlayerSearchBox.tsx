@@ -22,7 +22,7 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const [dbLoaded, setDbLoaded] = useState(false);
   const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [activeFilter, setActiveFilter] = useState<string | null>(null);
+  const [activeFilters, setActiveFilters] = useState<string[]>([]);
   const [isSmartSearch, setIsSmartSearch] = useState(false);
 
   const inputRef = useRef<HTMLDivElement>(null);
@@ -58,32 +58,41 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
   const handlePlayerClick = (playerName: string, playerData?: ESPNPlayer) => {
     setSearchTerm(playerName);
     setShowSuggestions(false);
-    setActiveFilter(null);
+    setActiveFilters([]);
     onPlayerSelect({ name: playerName, playerData });
   };
 
-  const filterPlayers = (players: ESPNPlayer[], filter: string): ESPNPlayer[] => {
-    switch (filter) {
-      case 'trending':
-        return players.filter(p => ['LeBron James', 'Patrick Mahomes', 'Stephen Curry'].includes(p.name));
-      case 'elite':
-        const elitePlayers = ['LeBron James', 'Stephen Curry', 'Patrick Mahomes', 'Mike Trout', 'Connor McDavid'];
-        return players.filter(p => elitePlayers.includes(p.name));
-      case 'NBA':
-      case 'NFL':
-      case 'MLB':
-      case 'NHL':
-        return players.filter(p => p.sport === filter);
-      case 'QB':
-        return players.filter(p => p.sport === 'NFL' && (p.position.includes('QB') || p.position.includes('Quarterback')));
-      case 'PG':
-        return players.filter(p => p.sport === 'NBA' && (p.position.includes('PG') || p.position.includes('Point')));
-      case 'injured':
-        // Simulate injured players filter
-        return players.filter(p => Math.random() > 0.8);
-      default:
-        return players;
-    }
+  const filterPlayers = (players: ESPNPlayer[], filters: string[]): ESPNPlayer[] => {
+    if (filters.length === 0) return players;
+
+    return players.filter(player => {
+      return filters.every(filter => {
+        switch (filter) {
+          case 'trending':
+            return ['LeBron James', 'Patrick Mahomes', 'Stephen Curry', 'Connor McDavid'].includes(player.name);
+          case 'elite':
+            const elitePlayers = ['LeBron James', 'Stephen Curry', 'Patrick Mahomes', 'Mike Trout', 'Connor McDavid'];
+            return elitePlayers.includes(player.name);
+          case 'breaking':
+            // Simulate breaking news players
+            return Math.random() > 0.9;
+          case 'injured':
+            // Simulate injured players
+            return Math.random() > 0.85;
+          case 'rookies':
+            // Simulate rookie players
+            return Math.random() > 0.9;
+          case 'NBA':
+          case 'NFL':
+          case 'MLB':
+          case 'NHL':
+            // Fix the sport filtering - ensure exact match
+            return player.sport === filter;
+          default:
+            return true;
+        }
+      });
+    });
   };
 
   const debouncedSearch = (query: string) => {
@@ -99,12 +108,12 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
         if (smartResult.isShortcut) {
           // Handle special search shortcuts
           const allPlayers = Array.from({ length: 100 }, (_, i) => espnPlayerDB.searchPlayers('a', 100)[i]).filter(Boolean);
-          const filtered = filterPlayers(allPlayers, smartResult.shortcutData?.value || '');
+          const filtered = filterPlayers(allPlayers, [smartResult.shortcutData?.value || '']);
           setSuggestions(filtered.slice(0, 8));
         } else {
-          const results = espnPlayerDB.searchPlayers(smartResult.enhancedQuery, 8);
-          const finalResults = activeFilter ? filterPlayers(results, activeFilter) : results;
-          setSuggestions(finalResults);
+          const results = espnPlayerDB.searchPlayers(smartResult.enhancedQuery, 50);
+          const finalResults = filterPlayers(results, activeFilters);
+          setSuggestions(finalResults.slice(0, 8));
         }
       } else {
         setSuggestions([]);
@@ -139,12 +148,45 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
   };
 
   const handleFilterSelect = (filter: string) => {
-    setActiveFilter(filter === activeFilter ? null : filter);
-    if (filter !== activeFilter) {
-      // Apply filter to current suggestions
-      const filtered = filterPlayers(suggestions.length > 0 ? suggestions : espnPlayerDB.searchPlayers('', 50), filter);
+    const newFilters = activeFilters.includes(filter) 
+      ? activeFilters.filter(f => f !== filter)
+      : [...activeFilters, filter];
+    
+    setActiveFilters(newFilters);
+    
+    // Apply filters to current results
+    if (searchTerm.length >= 2 || newFilters.length > 0) {
+      const baseResults = searchTerm.length >= 2 
+        ? espnPlayerDB.searchPlayers(searchTerm, 50)
+        : espnPlayerDB.searchPlayers('', 100); // Get more players when filtering without search
+      
+      const filtered = filterPlayers(baseResults, newFilters);
       setSuggestions(filtered.slice(0, 8));
       setShowSuggestions(true);
+    }
+  };
+
+  const handleFilterRemove = (filter: string) => {
+    const newFilters = activeFilters.filter(f => f !== filter);
+    setActiveFilters(newFilters);
+    
+    // Reapply remaining filters
+    if (searchTerm.length >= 2 || newFilters.length > 0) {
+      const baseResults = searchTerm.length >= 2 
+        ? espnPlayerDB.searchPlayers(searchTerm, 50)
+        : espnPlayerDB.searchPlayers('', 100);
+      
+      const filtered = filterPlayers(baseResults, newFilters);
+      setSuggestions(filtered.slice(0, 8));
+    }
+  };
+
+  const handleClearAllFilters = () => {
+    setActiveFilters([]);
+    if (searchTerm.length >= 2) {
+      debouncedSearch(searchTerm);
+    } else {
+      setSuggestions([]);
     }
   };
 
@@ -174,7 +216,12 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
       {/* Quick Filter Chips */}
       {dbLoaded && (
         <div className="mt-3">
-          <QuickFilterChips onFilterSelect={handleFilterSelect} />
+          <QuickFilterChips 
+            onFilterSelect={handleFilterSelect}
+            activeFilters={activeFilters}
+            onFilterRemove={handleFilterRemove}
+            onClearAll={handleClearAllFilters}
+          />
         </div>
       )}
 
@@ -201,14 +248,20 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
             )}
 
             {/* Player suggestions */}
-            {dbLoaded && searchTerm.length >= 2 && suggestions.length > 0 && (
+            {dbLoaded && (searchTerm.length >= 2 || activeFilters.length > 0) && suggestions.length > 0 && (
               <div className="p-4">
                 <p className="text-sm text-slate-400 mb-3">
-                  {activeFilter ? `Filtered Results (${suggestions.length})` : `Players (${suggestions.length})`}
-                  {activeFilter && (
-                    <Badge variant="outline" className="ml-2 text-xs text-blue-400 border-blue-400">
-                      {activeFilter}
-                    </Badge>
+                  {activeFilters.length > 0 ? (
+                    <>
+                      Filtered Results ({suggestions.length})
+                      {activeFilters.map(filter => (
+                        <Badge key={filter} variant="outline" className="ml-2 text-xs text-blue-400 border-blue-400">
+                          {filter}
+                        </Badge>
+                      ))}
+                    </>
+                  ) : (
+                    `Players (${suggestions.length})`
                   )}
                 </p>
                 <div className="space-y-2">
@@ -217,7 +270,7 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
                       key={player.id}
                       player={player}
                       onClick={() => handlePlayerClick(player.name, player)}
-                      showTrending={activeFilter === 'trending'}
+                      showTrending={activeFilters.includes('trending')}
                       compact={true}
                     />
                   ))}
@@ -226,15 +279,20 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
             )}
 
             {/* No results */}
-            {dbLoaded && searchTerm.length >= 2 && suggestions.length === 0 && (
+            {dbLoaded && (searchTerm.length >= 2 || activeFilters.length > 0) && suggestions.length === 0 && (
               <div className="p-4 border-b border-slate-700">
-                <p className="text-slate-400 text-sm">No players found for "{searchTerm}"</p>
-                <p className="text-slate-500 text-xs mt-1">Try nicknames, team abbreviations, or positions</p>
+                <p className="text-slate-400 text-sm">
+                  {activeFilters.length > 0 
+                    ? `No players found matching "${searchTerm}" with active filters`
+                    : `No players found for "${searchTerm}"`
+                  }
+                </p>
+                <p className="text-slate-500 text-xs mt-1">Try removing some filters or different search terms</p>
               </div>
             )}
 
             {/* Trending and popular when no search */}
-            {dbLoaded && searchTerm === '' && (
+            {dbLoaded && searchTerm === '' && activeFilters.length === 0 && (
               <div className="p-4">
                 <TrendingPlayersSection onPlayerSelect={handlePlayerClick} />
               </div>
