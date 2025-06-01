@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Search, Loader2, Zap } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -74,19 +73,15 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
             const elitePlayers = ['LeBron James', 'Stephen Curry', 'Patrick Mahomes', 'Mike Trout', 'Connor McDavid'];
             return elitePlayers.includes(player.name);
           case 'breaking':
-            // Simulate breaking news players
             return Math.random() > 0.9;
           case 'injured':
-            // Simulate injured players
             return Math.random() > 0.85;
           case 'rookies':
-            // Simulate rookie players
             return Math.random() > 0.9;
           case 'NBA':
           case 'NFL':
           case 'MLB':
           case 'NHL':
-            // Fix the sport filtering - ensure exact match
             return player.sport === filter;
           default:
             return true;
@@ -106,7 +101,6 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
         setIsSmartSearch(smartResult.enhancedQuery !== query || smartResult.isShortcut);
         
         if (smartResult.isShortcut) {
-          // Handle special search shortcuts
           const allPlayers = Array.from({ length: 100 }, (_, i) => espnPlayerDB.searchPlayers('a', 100)[i]).filter(Boolean);
           const filtered = filterPlayers(allPlayers, [smartResult.shortcutData?.value || '']);
           setSuggestions(filtered.slice(0, 8));
@@ -154,11 +148,10 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
     
     setActiveFilters(newFilters);
     
-    // Apply filters to current results
     if (searchTerm.length >= 2 || newFilters.length > 0) {
       const baseResults = searchTerm.length >= 2 
         ? espnPlayerDB.searchPlayers(searchTerm, 50)
-        : espnPlayerDB.searchPlayers('', 100); // Get more players when filtering without search
+        : espnPlayerDB.searchPlayers('', 100);
       
       const filtered = filterPlayers(baseResults, newFilters);
       setSuggestions(filtered.slice(0, 8));
@@ -170,7 +163,6 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
     const newFilters = activeFilters.filter(f => f !== filter);
     setActiveFilters(newFilters);
     
-    // Reapply remaining filters
     if (searchTerm.length >= 2 || newFilters.length > 0) {
       const baseResults = searchTerm.length >= 2 
         ? espnPlayerDB.searchPlayers(searchTerm, 50)
@@ -197,7 +189,7 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
           <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 w-5 h-5 text-slate-400" />
           <Input
             type="text"
-            placeholder={dbLoaded ? "Search players, try nicknames, teams, or 'NBA centers'..." : "Loading intelligent player search..."}
+            placeholder={dbLoaded ? "Search players, try nicknames" : "Loading intelligent player search..."}
             value={searchTerm}
             onChange={handleInputChange}
             onFocus={handleInputFocus}
@@ -221,6 +213,7 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
             activeFilters={activeFilters}
             onFilterRemove={handleFilterRemove}
             onClearAll={handleClearAllFilters}
+            onPlayerSelect={handlePlayerClick}
           />
         </div>
       )}
@@ -307,7 +300,7 @@ const PlayerSearchBox = ({ onPlayerSelect, value }: PlayerSearchBoxProps) => {
                 >
                   <div>
                     <p className="text-white font-medium">Search for "{searchTerm}"</p>
-                    <p className="text-sm text-slate-400">AI-powered sports intelligence analysis</p>
+                    <p className="text-sm text-slate-400">Multi-sport discussions, fantasy advice, injury reports • 200+ sports subreddits analyzed • Real-time community sentiment • Cross-platform intelligence</p>
                   </div>
                   <Search className="w-4 h-4 text-slate-400" />
                 </button>
