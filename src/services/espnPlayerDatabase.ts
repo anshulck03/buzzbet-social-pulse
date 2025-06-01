@@ -527,11 +527,18 @@ class FreePlayerDatabase {
     
     const searchTerm = query.toLowerCase().trim();
     const matches: ESPNPlayer[] = [];
+    const seen = new Set<string>(); // Track seen players to prevent duplicates
     
     for (const player of this.players) {
       const score = this.calculateMatchScore(player, searchTerm);
       if (score > 0) {
-        matches.push({ ...player, matchScore: score });
+        // Create unique key to prevent duplicates in search results
+        const uniqueKey = `${player.name.toLowerCase().trim()}_${player.sport}`;
+        
+        if (!seen.has(uniqueKey)) {
+          seen.add(uniqueKey);
+          matches.push({ ...player, matchScore: score });
+        }
       }
     }
     
