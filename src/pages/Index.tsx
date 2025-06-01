@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Search, TrendingUp, TrendingDown, AlertTriangle, Activity, Users, Eye, MessageCircle, Brain, Hash, Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -80,7 +81,7 @@ const Index = () => {
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
-                  SentiBet
+                  Jarvis
                 </h1>
                 <p className="text-xs text-slate-400 uppercase tracking-wider">Sports Intelligence</p>
               </div>
