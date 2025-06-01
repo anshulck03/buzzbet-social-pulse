@@ -55,6 +55,9 @@ class FreePlayerDatabase {
     console.log('No valid cache found, fetching fresh data from ESPN APIs...');
     await this.fetchAllPlayers();
     
+    // Deduplicate players before saving to cache
+    this.deduplicatePlayers();
+    
     // Save to cache
     this.saveToCache();
     return this.players;
@@ -135,9 +138,60 @@ class FreePlayerDatabase {
       await this.loadSportPlayers(sport.name as 'NBA' | 'NFL' | 'MLB' | 'NHL', sport.path);
     }
 
+    // Deduplicate players after loading all data
+    this.deduplicatePlayers();
+
     this.isLoaded = true;
     this.logPlayerStats();
     return this.players;
+  }
+
+  private deduplicatePlayers(): void {
+    const seen = new Map<string, ESPNPlayer>();
+    const deduplicated: ESPNPlayer[] = [];
+
+    for (const player of this.players) {
+      // Create a unique key based on name and sport
+      const key = `${player.name.toLowerCase().trim()}_${player.sport}`;
+      
+      if (!seen.has(key)) {
+        seen.set(key, player);
+        deduplicated.push(player);
+      } else {
+        // If we already have this player, keep the one with more complete data
+        const existing = seen.get(key)!;
+        
+        // Prioritize manual overrides
+        if (player.id.includes('manual') && !existing.id.includes('manual')) {
+          seen.set(key, player);
+          // Replace the existing player in the deduplicated array
+          const index = deduplicated.findIndex(p => p.id === existing.id);
+          if (index !== -1) {
+            deduplicated[index] = player;
+          }
+        } else if (!player.id.includes('manual') && existing.id.includes('manual')) {
+          // Keep the existing manual override
+          continue;
+        } else {
+          // Both are same type, keep the one with better headshot or more complete data
+          if (player.headshot && !existing.headshot) {
+            seen.set(key, player);
+            const index = deduplicated.findIndex(p => p.id === existing.id);
+            if (index !== -1) {
+              deduplicated[index] = player;
+            }
+          }
+        }
+      }
+    }
+
+    const originalCount = this.players.length;
+    this.players = deduplicated;
+    const duplicatesRemoved = originalCount - this.players.length;
+    
+    if (duplicatesRemoved > 0) {
+      console.log(`Removed ${duplicatesRemoved} duplicate players. Final count: ${this.players.length}`);
+    }
   }
 
   private logPlayerStats(): void {
@@ -203,9 +257,9 @@ class FreePlayerDatabase {
     const name = athlete.displayName || athlete.fullName || athlete.name;
     if (!name) return false;
 
-    // Check if player already exists
+    // Check if player already exists (prevent duplicates during loading)
     const existingPlayer = this.players.find(p => 
-      p.name.toLowerCase() === name.toLowerCase() && p.sport === sport
+      p.name.toLowerCase().trim() === name.toLowerCase().trim() && p.sport === sport
     );
     if (existingPlayer) return false;
 
@@ -275,9 +329,9 @@ class FreePlayerDatabase {
                   const name = athlete.fullName || athlete.displayName;
                   if (!name) return;
 
-                  // Check if player already exists
+                  // Check if player already exists (prevent duplicates during loading)
                   const existingPlayer = this.players.find(p => 
-                    p.name.toLowerCase() === name.toLowerCase() && p.sport === sport
+                    p.name.toLowerCase().trim() === name.toLowerCase().trim() && p.sport === sport
                   );
                   if (existingPlayer) return;
 
@@ -388,9 +442,9 @@ class FreePlayerDatabase {
     console.log(`Adding ${players.length} popular ${sport} players as fallback`);
     
     players.forEach((player, index) => {
-      // Check if player already exists
+      // Check if player already exists (prevent duplicates during loading)
       const existingPlayer = this.players.find(p => 
-        p.name.toLowerCase() === player.name.toLowerCase() && p.sport === sport
+        p.name.toLowerCase().trim() === player.name.toLowerCase().trim() && p.sport === sport
       );
       if (!existingPlayer) {
         this.players.push({
