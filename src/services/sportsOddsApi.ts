@@ -1,4 +1,3 @@
-
 interface GameOdds {
   id: string;
   sport_key: string;
@@ -59,7 +58,6 @@ class SportsOddsApi {
   }
 
   async getPlayerGameInfo(playerName: string, sport: string = 'NHL', playerData?: any): Promise<{
-    nextGame?: GameOdds;
     liveGame?: LiveScore;
     playerOdds?: any;
   }> {
@@ -70,15 +68,10 @@ class SportsOddsApi {
       // Map sport to API sport key
       const sportKey = this.getSportKey(sport);
       
-      // Get upcoming games (odds endpoint) for next 7 days
-      const sevenDaysFromNow = new Date();
-      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-      const upcomingGames = await this.makeRequest(`/sports/${sportKey}/odds?regions=us&markets=h2h&oddsFormat=american&dateFormat=iso&commenceTimeFrom=${new Date().toISOString()}&commenceTimeTo=${sevenDaysFromNow.toISOString()}`);
-      
       // Get recent scores for live games only
       const scores = await this.makeRequest(`/sports/${sportKey}/scores?daysFrom=1&dateFormat=iso`);
       
-      return this.processPlayerGameData(playerName, upcomingGames, scores, playerData);
+      return this.processPlayerGameData(playerName, scores, playerData);
       
     } catch (error) {
       console.error('Error fetching sports odds data:', error);
@@ -245,8 +238,7 @@ class SportsOddsApi {
     return false;
   }
 
-  private processPlayerGameData(playerName: string, upcomingGames: GameOdds[], scores: LiveScore[], playerData?: any): {
-    nextGame?: GameOdds;
+  private processPlayerGameData(playerName: string, scores: LiveScore[], playerData?: any): {
     liveGame?: LiveScore;
     playerOdds?: any;
   } {
@@ -268,29 +260,9 @@ class SportsOddsApi {
         result.liveGame = liveGame;
         console.log(`✅ Found live game: ${liveGame.away_team} @ ${liveGame.home_team}`);
       }
-
-      // Find next upcoming game for player's team within 7 days
-      const nextGame = upcomingGames.find(game => {
-        const gameDate = new Date(game.commence_time);
-        const now = new Date();
-        const sevenDaysFromNow = new Date();
-        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-        
-        const isWithinWeek = gameDate >= now && gameDate <= sevenDaysFromNow;
-        const isPlayerTeam = this.isTeamMatch(game.home_team, playerTeam) || this.isTeamMatch(game.away_team, playerTeam);
-        
-        console.log(`Checking upcoming game: ${game.away_team} @ ${game.home_team}, date: ${gameDate}, isWithinWeek: ${isWithinWeek}, isPlayerTeam: ${isPlayerTeam}`);
-        return isWithinWeek && isPlayerTeam;
-      });
-
-      if (nextGame) {
-        result.nextGame = nextGame;
-        console.log(`✅ Found next game: ${nextGame.away_team} @ ${nextGame.home_team} on ${nextGame.commence_time}`);
-      }
       
       console.log(`Final result for ${playerName}:`, {
-        hasLiveGame: !!result.liveGame,
-        hasNextGame: !!result.nextGame
+        hasLiveGame: !!result.liveGame
       });
     } else {
       console.log(`❌ No team identified for ${playerName}, cannot match games`);
@@ -300,29 +272,7 @@ class SportsOddsApi {
   }
 
   private getFallbackGameData(playerName: string, sport: string, playerData?: any) {
-    const playerTeam = this.getPlayerTeam(playerName, playerData) || 'Team';
-    
-    return {
-      nextGame: {
-        id: 'demo-next',
-        sport_key: sport.toLowerCase(),
-        sport_title: sport,
-        commence_time: new Date(Date.now() + 86400000).toISOString(),
-        home_team: 'Opponent',
-        away_team: playerTeam,
-        bookmakers: [{
-          key: 'fanduel',
-          title: 'FanDuel',
-          markets: [{
-            key: 'h2h',
-            outcomes: [
-              { name: playerTeam, price: -110 },
-              { name: 'Opponent', price: -110 }
-            ]
-          }]
-        }]
-      }
-    };
+    return {};
   }
 }
 
