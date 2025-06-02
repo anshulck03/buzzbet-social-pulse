@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { Search, TrendingUp, TrendingDown, AlertTriangle, Activity, Users, Eye, MessageCircle, Brain, Hash, Trophy } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -61,56 +59,13 @@ const Index = () => {
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              {/* Custom Jarvis AI Logo */}
-              <div className="relative w-12 h-12 flex items-center justify-center">
-                <div className="absolute inset-0 bg-gradient-to-br from-cyan-400/20 to-emerald-400/20 rounded-xl border border-cyan-400/30 backdrop-blur-sm animate-pulse"></div>
-                <svg className="w-10 h-10 relative z-10" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
-                  {/* Outer neural network circle */}
-                  <circle cx="60" cy="60" r="50" 
-                          fill="none" 
-                          stroke="url(#neuralGradient)" 
-                          strokeWidth="2" 
-                          strokeDasharray="8,4" 
-                          className="animate-spin" 
-                          style={{animationDuration: '8s'}} />
-                  
-                  {/* Inner core brain */}
-                  <path d="M35 45 C25 45, 20 55, 20 65 C20 75, 25 85, 35 85 L40 85 C40 90, 45 95, 50 95 L70 95 C75 95, 80 90, 80 85 L85 85 C95 85, 100 75, 100 65 C100 55, 95 45, 85 45 L80 45 C80 40, 75 35, 70 35 L50 35 C45 35, 40 40, 40 45 Z" 
-                        fill="url(#brainGradient)" 
-                        stroke="rgba(6, 182, 212, 0.6)" 
-                        strokeWidth="1.5"/>
-                  
-                  {/* Neural connection points */}
-                  <circle cx="45" cy="55" r="3" fill="#06b6d4" className="animate-pulse"/>
-                  <circle cx="75" cy="55" r="3" fill="#10b981" className="animate-pulse" style={{animationDelay: '0.5s'}}/>
-                  <circle cx="60" cy="75" r="3" fill="#06b6d4" className="animate-pulse" style={{animationDelay: '1s'}}/>
-                  
-                  {/* Data flow lines */}
-                  <line x1="45" y1="55" x2="60" y2="75" stroke="#06b6d4" strokeWidth="1" opacity="0.6"/>
-                  <line x1="75" y1="55" x2="60" y2="75" stroke="#10b981" strokeWidth="1" opacity="0.6"/>
-                  <line x1="45" y1="55" x2="75" y2="55" stroke="#06b6d4" strokeWidth="1" opacity="0.4"/>
-                  
-                  {/* Central AI core */}
-                  <circle cx="60" cy="65" r="8" fill="url(#coreGradient)" stroke="#06b6d4" strokeWidth="1"/>
-                  <circle cx="60" cy="65" r="4" fill="#ffffff" opacity="0.8" className="animate-ping"/>
-                  
-                  <defs>
-                    <linearGradient id="brainGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="rgba(6, 182, 212, 0.3)" />
-                      <stop offset="50%" stopColor="rgba(16, 185, 129, 0.4)" />
-                      <stop offset="100%" stopColor="rgba(6, 182, 212, 0.2)" />
-                    </linearGradient>
-                    <linearGradient id="neuralGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <stop offset="0%" stopColor="#06b6d4" />
-                      <stop offset="50%" stopColor="#10b981" />
-                      <stop offset="100%" stopColor="#06b6d4" />
-                    </linearGradient>
-                    <radialGradient id="coreGradient" cx="50%" cy="50%" r="50%">
-                      <stop offset="0%" stopColor="rgba(255, 255, 255, 0.8)" />
-                      <stop offset="100%" stopColor="rgba(6, 182, 212, 0.6)" />
-                    </radialGradient>
-                  </defs>
-                </svg>
+              {/* Jarvis Logo */}
+              <div className="w-12 h-12 flex items-center justify-center">
+                <img 
+                  src="/lovable-uploads/70b315f6-3b56-4469-9f77-e6f15146a436.png" 
+                  alt="Jarvis Sports Intelligence Logo" 
+                  className="w-12 h-12 object-contain"
+                />
               </div>
               <div>
                 <h1 className="text-2xl font-bold bg-gradient-to-r from-cyan-400 to-emerald-400 bg-clip-text text-transparent">
@@ -269,4 +224,3 @@ const Index = () => {
 };
 
 export default Index;
-
