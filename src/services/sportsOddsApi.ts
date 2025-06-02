@@ -70,8 +70,10 @@ class SportsOddsApi {
       // Map sport to API sport key
       const sportKey = this.getSportKey(sport);
       
-      // Get upcoming games (odds endpoint)
-      const upcomingGames = await this.makeRequest(`/sports/${sportKey}/odds?regions=us&markets=h2h&oddsFormat=american&dateFormat=iso`);
+      // Get upcoming games (odds endpoint) for next 7 days
+      const sevenDaysFromNow = new Date();
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+      const upcomingGames = await this.makeRequest(`/sports/${sportKey}/odds?regions=us&markets=h2h&oddsFormat=american&dateFormat=iso&commenceTimeFrom=${new Date().toISOString()}&commenceTimeTo=${sevenDaysFromNow.toISOString()}`);
       
       // Get recent scores for live games only
       const scores = await this.makeRequest(`/sports/${sportKey}/scores?daysFrom=1&dateFormat=iso`);
@@ -266,9 +268,29 @@ class SportsOddsApi {
         result.liveGame = liveGame;
         console.log(`✅ Found live game: ${liveGame.away_team} @ ${liveGame.home_team}`);
       }
+
+      // Find next upcoming game for player's team within 7 days
+      const nextGame = upcomingGames.find(game => {
+        const gameDate = new Date(game.commence_time);
+        const now = new Date();
+        const sevenDaysFromNow = new Date();
+        sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+        
+        const isWithinWeek = gameDate >= now && gameDate <= sevenDaysFromNow;
+        const isPlayerTeam = this.isTeamMatch(game.home_team, playerTeam) || this.isTeamMatch(game.away_team, playerTeam);
+        
+        console.log(`Checking upcoming game: ${game.away_team} @ ${game.home_team}, date: ${gameDate}, isWithinWeek: ${isWithinWeek}, isPlayerTeam: ${isPlayerTeam}`);
+        return isWithinWeek && isPlayerTeam;
+      });
+
+      if (nextGame) {
+        result.nextGame = nextGame;
+        console.log(`✅ Found next game: ${nextGame.away_team} @ ${nextGame.home_team} on ${nextGame.commence_time}`);
+      }
       
       console.log(`Final result for ${playerName}:`, {
-        hasLiveGame: !!result.liveGame
+        hasLiveGame: !!result.liveGame,
+        hasNextGame: !!result.nextGame
       });
     } else {
       console.log(`❌ No team identified for ${playerName}, cannot match games`);
