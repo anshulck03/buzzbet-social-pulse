@@ -1,4 +1,3 @@
-
 interface GameOdds {
   id: string;
   sport_key: string;
@@ -41,14 +40,13 @@ interface LiveScore {
 
 class SportsOddsApi {
   private apiKey = '04572b4782d8dcec18334e5b3184d68c';
-  private baseUrl = 'https://odds-api1.p.rapidapi.com';
+  private baseUrl = 'https://api.the-odds-api.com/v4';
 
   private async makeRequest(endpoint: string): Promise<any> {
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
+    const response = await fetch(`${this.baseUrl}${endpoint}&apiKey=${this.apiKey}`, {
       method: 'GET',
       headers: {
-        'X-RapidAPI-Key': this.apiKey,
-        'X-RapidAPI-Host': 'odds-api1.p.rapidapi.com'
+        'Content-Type': 'application/json'
       }
     });
 
@@ -59,7 +57,7 @@ class SportsOddsApi {
     return response.json();
   }
 
-  async getPlayerGameInfo(playerName: string, sport: string = 'NBA', playerData?: any): Promise<{
+  async getPlayerGameInfo(playerName: string, sport: string = 'NHL', playerData?: any): Promise<{
     nextGame?: GameOdds;
     liveGame?: LiveScore;
     lastGame?: LiveScore;
@@ -72,11 +70,11 @@ class SportsOddsApi {
       // Map sport to API sport key
       const sportKey = this.getSportKey(sport);
       
-      // Get upcoming games
-      const upcomingGames = await this.makeRequest(`/odds?sport=${sportKey}&region=us&markets=h2h,spreads,totals&oddsFormat=american&dateFormat=iso`);
+      // Get upcoming games (odds endpoint)
+      const upcomingGames = await this.makeRequest(`/sports/${sportKey}/odds?regions=us&markets=h2h&oddsFormat=american&dateFormat=iso`);
       
-      // Get live/recent scores
-      const scores = await this.makeRequest(`/scores?sport=${sportKey}&daysFrom=3`);
+      // Get recent scores
+      const scores = await this.makeRequest(`/sports/${sportKey}/scores?daysFrom=3&dateFormat=iso`);
       
       return this.processPlayerGameData(playerName, upcomingGames, scores, playerData);
       
@@ -301,19 +299,6 @@ class SportsOddsApi {
         console.log(`✅ Found live game: ${liveGame.away_team} @ ${liveGame.home_team}`);
       }
       
-      // Find next upcoming game for player's team
-      const nextGame = upcomingGames.find(game => {
-        const isFuture = new Date(game.commence_time) > new Date();
-        const isPlayerTeam = this.isTeamMatch(game.home_team, playerTeam) || this.isTeamMatch(game.away_team, playerTeam);
-        console.log(`Checking upcoming game: ${game.away_team} @ ${game.home_team}, isFuture: ${isFuture}, isPlayerTeam: ${isPlayerTeam}`);
-        return isFuture && isPlayerTeam;
-      });
-      
-      if (nextGame) {
-        result.nextGame = nextGame;
-        console.log(`✅ Found next game: ${nextGame.away_team} @ ${nextGame.home_team}`);
-      }
-      
       // Find last completed game for player's team
       const lastGame = scores
         .filter(game => {
@@ -327,11 +312,11 @@ class SportsOddsApi {
       if (lastGame) {
         result.lastGame = lastGame;
         console.log(`✅ Found last game: ${lastGame.away_team} @ ${lastGame.home_team}`);
+        console.log(`Scores:`, lastGame.scores);
       }
       
       console.log(`Final result for ${playerName}:`, {
         hasLiveGame: !!result.liveGame,
-        hasNextGame: !!result.nextGame,
         hasLastGame: !!result.lastGame
       });
     } else {
