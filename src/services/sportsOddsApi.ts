@@ -1,4 +1,3 @@
-
 interface GameOdds {
   id: string;
   sport_key: string;
@@ -140,7 +139,7 @@ class SportsOddsApi {
       'DEN': 'Denver Nuggets',
       'MIL': 'Milwaukee Bucks',
       'PHI': 'Philadelphia 76ers',
-      'DAL': 'Dallas Mavericks',
+      'DAL_NBA': 'Dallas Mavericks',
       'MIN': 'Minnesota Timberwolves',
       'OKC': 'Oklahoma City Thunder',
       'CLE': 'Cleveland Cavaliers',
@@ -151,7 +150,6 @@ class SportsOddsApi {
       'ATL': 'Atlanta Hawks',
       'ORL': 'Orlando Magic',
       'BKN': 'Brooklyn Nets',
-      'TOR': 'Toronto Raptors',
       'WAS': 'Washington Wizards',
       'UTA': 'Utah Jazz',
       'POR': 'Portland Trail Blazers',
@@ -160,29 +158,29 @@ class SportsOddsApi {
       'CHA': 'Charlotte Hornets',
       // NHL teams  
       'EDM': 'Edmonton Oilers',
-      'TOR': 'Toronto Maple Leafs',
+      'TOR_NHL': 'Toronto Maple Leafs',
       'VGK': 'Vegas Golden Knights',
       'TBL': 'Tampa Bay Lightning',
       'COL': 'Colorado Avalanche',
       'CAR': 'Carolina Hurricanes',
       'NYR': 'New York Rangers',
       'FLA': 'Florida Panthers',
-      'BOS': 'Boston Bruins',
-      'DAL': 'Dallas Stars',
+      'BOS_NHL': 'Boston Bruins',
+      'DAL_NHL': 'Dallas Stars',
       // NFL teams
       'KC': 'Kansas City Chiefs',
       'BUF': 'Buffalo Bills',
       'SF': 'San Francisco 49ers',
-      'DAL': 'Dallas Cowboys',
+      'DAL_NFL': 'Dallas Cowboys',
       'BAL': 'Baltimore Ravens',
-      'MIA': 'Miami Dolphins',
+      'MIA_NFL': 'Miami Dolphins',
       'LAR': 'Los Angeles Rams',
-      'PHI': 'Philadelphia Eagles',
+      'PHI_NFL': 'Philadelphia Eagles',
       // MLB teams
       'LAD': 'Los Angeles Dodgers',
       'NYY': 'New York Yankees',
-      'HOU': 'Houston Astros',
-      'ATL': 'Atlanta Braves',
+      'HOU_MLB': 'Houston Astros',
+      'ATL_MLB': 'Atlanta Braves',
       'TB': 'Tampa Bay Rays',
       'SD': 'San Diego Padres'
     };

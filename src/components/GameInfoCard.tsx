@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Gamepad2, Clock, Trophy, TrendingUp, Calendar, Activity } from 'lucide-react';
+import { Trophy, Calendar, Activity } from 'lucide-react';
 import { sportsOddsApi, GameOdds, LiveScore } from '@/services/sportsOddsApi';
 
 interface GameInfoCardProps {
@@ -43,10 +44,6 @@ const GameInfoCard = ({ player }: GameInfoCardProps) => {
       date: date.toLocaleDateString(),
       time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-  };
-
-  const formatOdds = (price: number) => {
-    return price > 0 ? `+${price}` : `${price}`;
   };
 
   if (loading) {
@@ -99,7 +96,7 @@ const GameInfoCard = ({ player }: GameInfoCardProps) => {
         </Card>
       )}
 
-      {/* Next Game */}
+      {/* Next Game - Simple without betting odds */}
       {gameData.nextGame && (
         <Card className="bg-slate-800/50 border-slate-700 border-l-4 border-l-green-400">
           <CardHeader>
@@ -109,87 +106,92 @@ const GameInfoCard = ({ player }: GameInfoCardProps) => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="mb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-slate-300 font-medium">{gameData.nextGame.away_team}</span>
-                <span className="text-slate-500">@</span>
-                <span className="text-slate-300 font-medium">{gameData.nextGame.home_team}</span>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-slate-300 font-medium">{gameData.nextGame.away_team}</span>
+              <span className="text-slate-500">@</span>
+              <span className="text-slate-300 font-medium">{gameData.nextGame.home_team}</span>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-slate-400 text-sm">
+                {formatDateTime(gameData.nextGame.commence_time).date}
               </div>
-              
-              <div className="text-center mb-4">
-                <div className="text-slate-400 text-sm">
-                  {formatDateTime(gameData.nextGame.commence_time).date}
-                </div>
-                <div className="text-white font-medium">
-                  {formatDateTime(gameData.nextGame.commence_time).time}
-                </div>
+              <div className="text-white font-medium">
+                {formatDateTime(gameData.nextGame.commence_time).time}
               </div>
-
-              {/* Betting Odds */}
-              {gameData.nextGame.bookmakers && gameData.nextGame.bookmakers.length > 0 && (
-                <div className="bg-slate-900/50 rounded-lg p-3">
-                  <h4 className="text-slate-300 font-medium mb-2 flex items-center">
-                    <TrendingUp className="w-4 h-4 mr-1" />
-                    Betting Odds ({gameData.nextGame.bookmakers[0].title})
-                  </h4>
-                  
-                  {gameData.nextGame.bookmakers[0].markets.map((market, index) => (
-                    <div key={index} className="mb-2">
-                      <p className="text-xs text-slate-500 mb-1">
-                        {market.key === 'h2h' ? 'Moneyline' : market.key.toUpperCase()}
-                      </p>
-                      <div className="flex justify-between gap-2">
-                        {market.outcomes.map((outcome, outcomeIndex) => (
-                          <div key={outcomeIndex} className="flex-1 text-center p-2 bg-slate-800/50 rounded">
-                            <p className="text-xs text-slate-400">{outcome.name}</p>
-                            <p className="text-sm font-medium text-white">
-                              {formatOdds(outcome.price)}
-                            </p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Last Game */}
+      {/* Last Game Statistics - Enhanced */}
       {gameData.lastGame && !gameData.liveGame && (
         <Card className="bg-slate-800/50 border-slate-700 border-l-4 border-l-blue-400">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
               <Trophy className="w-5 h-5 mr-2 text-blue-400" />
-              Last Game
+              Last Game Statistics
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex items-center justify-between mb-2">
+            <div className="space-y-4">
+              {/* Game Result */}
+              <div className="flex items-center justify-between">
+                <div className="text-center flex-1">
+                  <p className="text-slate-300 font-medium">{gameData.lastGame.away_team}</p>
+                  <p className="text-2xl font-bold text-white">
+                    {gameData.lastGame.scores?.find(s => s.name === gameData.lastGame!.away_team)?.score || '0'}
+                  </p>
+                </div>
+                <div className="text-center mx-4">
+                  <Badge variant="outline" className="text-blue-400 border-blue-400">
+                    FINAL
+                  </Badge>
+                </div>
+                <div className="text-center flex-1">
+                  <p className="text-slate-300 font-medium">{gameData.lastGame.home_team}</p>
+                  <p className="text-2xl font-bold text-white">
+                    {gameData.lastGame.scores?.find(s => s.name === gameData.lastGame!.home_team)?.score || '0'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Game Details */}
+              <div className="bg-slate-900/50 rounded-lg p-3">
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-slate-400">Date:</span>
+                    <p className="text-slate-300">{formatDateTime(gameData.lastGame.commence_time).date}</p>
+                  </div>
+                  <div>
+                    <span className="text-slate-400">Result:</span>
+                    <p className="text-slate-300">
+                      {(() => {
+                        const awayScore = parseInt(gameData.lastGame.scores?.find(s => s.name === gameData.lastGame!.away_team)?.score || '0');
+                        const homeScore = parseInt(gameData.lastGame.scores?.find(s => s.name === gameData.lastGame!.home_team)?.score || '0');
+                        const playerTeam = player?.playerData?.team || '';
+                        
+                        if (playerTeam === gameData.lastGame.away_team) {
+                          return awayScore > homeScore ? 'Win' : 'Loss';
+                        } else if (playerTeam === gameData.lastGame.home_team) {
+                          return homeScore > awayScore ? 'Win' : 'Loss';
+                        }
+                        return 'Result';
+                      })()}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Score Difference */}
               <div className="text-center">
-                <p className="text-slate-300 font-medium">{gameData.lastGame.away_team}</p>
-                <p className="text-2xl font-bold text-white">
-                  {gameData.lastGame.scores?.find(s => s.name === gameData.lastGame!.away_team)?.score || '0'}
+                <p className="text-xs text-slate-500">
+                  Score Difference: {Math.abs(
+                    parseInt(gameData.lastGame.scores?.find(s => s.name === gameData.lastGame!.away_team)?.score || '0') -
+                    parseInt(gameData.lastGame.scores?.find(s => s.name === gameData.lastGame!.home_team)?.score || '0')
+                  )} points
                 </p>
               </div>
-              <div className="text-center">
-                <Badge variant="outline" className="text-blue-400 border-blue-400">
-                  FINAL
-                </Badge>
-              </div>
-              <div className="text-center">
-                <p className="text-slate-300 font-medium">{gameData.lastGame.home_team}</p>
-                <p className="text-2xl font-bold text-white">
-                  {gameData.lastGame.scores?.find(s => s.name === gameData.lastGame!.home_team)?.score || '0'}
-                </p>
-              </div>
-            </div>
-            <div className="text-center mt-2">
-              <p className="text-xs text-slate-500">
-                {formatDateTime(gameData.lastGame.commence_time).date}
-              </p>
             </div>
           </CardContent>
         </Card>
