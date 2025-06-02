@@ -25,7 +25,12 @@ const GameInfoCard = ({ player }: GameInfoCardProps) => {
         const sport = player.playerData?.sport || 'NBA';
         console.log(`Fetching game data for ${player.name} with team: ${player.playerData?.team || player.playerData?.teamAbbr}`);
         const data = await sportsOddsApi.getPlayerGameInfo(player.name, sport, player.playerData);
-        setGameData(data);
+        
+        // Only set live game and last game data, explicitly exclude next game
+        setGameData({
+          liveGame: data.liveGame,
+          lastGame: data.lastGame
+        });
       } catch (error) {
         console.error('Error fetching game data:', error);
       } finally {
