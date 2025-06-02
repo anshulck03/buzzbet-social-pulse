@@ -1,3 +1,4 @@
+
 interface GameOdds {
   id: string;
   sport_key: string;
@@ -39,7 +40,7 @@ interface LiveScore {
 }
 
 class SportsOddsApi {
-  private apiKey = 'bc97075688msh160931b3c5ebb01p1aaa3cjsna86cbf04387d';
+  private apiKey = '04572b4782d8dcec18334e5b3184d68c';
   private baseUrl = 'https://odds-api1.p.rapidapi.com';
 
   private async makeRequest(endpoint: string): Promise<any> {
