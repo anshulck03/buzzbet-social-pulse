@@ -2,8 +2,8 @@
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Calendar, Activity } from 'lucide-react';
-import { sportsOddsApi, GameOdds, LiveScore } from '@/services/sportsOddsApi';
+import { Trophy, Activity } from 'lucide-react';
+import { sportsOddsApi, LiveScore } from '@/services/sportsOddsApi';
 
 interface GameInfoCardProps {
   player: { name: string; playerData?: any } | null;
@@ -11,10 +11,8 @@ interface GameInfoCardProps {
 
 const GameInfoCard = ({ player }: GameInfoCardProps) => {
   const [gameData, setGameData] = useState<{
-    nextGame?: GameOdds;
     liveGame?: LiveScore;
     lastGame?: LiveScore;
-    playerOdds?: any;
   } | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -96,41 +94,13 @@ const GameInfoCard = ({ player }: GameInfoCardProps) => {
         </Card>
       )}
 
-      {/* Next Game - Simple without betting odds */}
-      {gameData.nextGame && (
-        <Card className="bg-slate-800/50 border-slate-700 border-l-4 border-l-green-400">
-          <CardHeader>
-            <CardTitle className="text-white flex items-center">
-              <Calendar className="w-5 h-5 mr-2 text-green-400" />
-              Next Game
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-slate-300 font-medium">{gameData.nextGame.away_team}</span>
-              <span className="text-slate-500">@</span>
-              <span className="text-slate-300 font-medium">{gameData.nextGame.home_team}</span>
-            </div>
-            
-            <div className="text-center">
-              <div className="text-slate-400 text-sm">
-                {formatDateTime(gameData.nextGame.commence_time).date}
-              </div>
-              <div className="text-white font-medium">
-                {formatDateTime(gameData.nextGame.commence_time).time}
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Last Game Statistics - Enhanced */}
       {gameData.lastGame && !gameData.liveGame && (
         <Card className="bg-slate-800/50 border-slate-700 border-l-4 border-l-blue-400">
           <CardHeader>
             <CardTitle className="text-white flex items-center">
               <Trophy className="w-5 h-5 mr-2 text-blue-400" />
-              Last Game Statistics
+              Team's Last Game
             </CardTitle>
           </CardHeader>
           <CardContent>
