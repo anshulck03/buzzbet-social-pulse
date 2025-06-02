@@ -1,3 +1,4 @@
+
 interface GameOdds {
   id: string;
   sport_key: string;
@@ -60,7 +61,6 @@ class SportsOddsApi {
   async getPlayerGameInfo(playerName: string, sport: string = 'NHL', playerData?: any): Promise<{
     nextGame?: GameOdds;
     liveGame?: LiveScore;
-    lastGame?: LiveScore;
     playerOdds?: any;
   }> {
     try {
@@ -73,8 +73,8 @@ class SportsOddsApi {
       // Get upcoming games (odds endpoint)
       const upcomingGames = await this.makeRequest(`/sports/${sportKey}/odds?regions=us&markets=h2h&oddsFormat=american&dateFormat=iso`);
       
-      // Get recent scores
-      const scores = await this.makeRequest(`/sports/${sportKey}/scores?daysFrom=3&dateFormat=iso`);
+      // Get recent scores for live games only
+      const scores = await this.makeRequest(`/sports/${sportKey}/scores?daysFrom=1&dateFormat=iso`);
       
       return this.processPlayerGameData(playerName, upcomingGames, scores, playerData);
       
@@ -246,7 +246,6 @@ class SportsOddsApi {
   private processPlayerGameData(playerName: string, upcomingGames: GameOdds[], scores: LiveScore[], playerData?: any): {
     nextGame?: GameOdds;
     liveGame?: LiveScore;
-    lastGame?: LiveScore;
     playerOdds?: any;
   } {
     const playerTeam = this.getPlayerTeam(playerName, playerData);
@@ -268,25 +267,8 @@ class SportsOddsApi {
         console.log(`✅ Found live game: ${liveGame.away_team} @ ${liveGame.home_team}`);
       }
       
-      // Find last completed game for player's team
-      const lastGame = scores
-        .filter(game => {
-          const isCompleted = game.completed;
-          const isPlayerTeam = this.isTeamMatch(game.home_team, playerTeam) || this.isTeamMatch(game.away_team, playerTeam);
-          console.log(`Checking completed game: ${game.away_team} @ ${game.home_team}, isCompleted: ${isCompleted}, isPlayerTeam: ${isPlayerTeam}`);
-          return isCompleted && isPlayerTeam;
-        })
-        .sort((a, b) => new Date(b.commence_time).getTime() - new Date(a.commence_time).getTime())[0];
-      
-      if (lastGame) {
-        result.lastGame = lastGame;
-        console.log(`✅ Found last game: ${lastGame.away_team} @ ${lastGame.home_team}`);
-        console.log(`Scores:`, lastGame.scores);
-      }
-      
       console.log(`Final result for ${playerName}:`, {
-        hasLiveGame: !!result.liveGame,
-        hasLastGame: !!result.lastGame
+        hasLiveGame: !!result.liveGame
       });
     } else {
       console.log(`❌ No team identified for ${playerName}, cannot match games`);
@@ -317,20 +299,6 @@ class SportsOddsApi {
             ]
           }]
         }]
-      },
-      lastGame: {
-        id: 'demo-last',
-        sport_key: sport.toLowerCase(),
-        sport_title: sport,
-        commence_time: new Date(Date.now() - 86400000).toISOString(),
-        completed: true,
-        home_team: 'Opponent',
-        away_team: playerTeam,
-        scores: [
-          { name: playerTeam, score: '108' },
-          { name: 'Opponent', score: '112' }
-        ],
-        last_update: new Date().toISOString()
       }
     };
   }
