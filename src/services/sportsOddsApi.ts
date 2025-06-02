@@ -1,4 +1,3 @@
-
 interface GameOdds {
   id: string;
   sport_key: string;
@@ -59,7 +58,7 @@ class SportsOddsApi {
     return response.json();
   }
 
-  async getPlayerGameInfo(playerName: string, sport: string = 'NBA'): Promise<{
+  async getPlayerGameInfo(playerName: string, sport: string = 'NBA', playerData?: any): Promise<{
     nextGame?: GameOdds;
     liveGame?: LiveScore;
     lastGame?: LiveScore;
@@ -77,11 +76,11 @@ class SportsOddsApi {
       // Get live/recent scores
       const scores = await this.makeRequest(`/scores?sport=${sportKey}&daysFrom=3`);
       
-      return this.processPlayerGameData(playerName, upcomingGames, scores);
+      return this.processPlayerGameData(playerName, upcomingGames, scores, playerData);
       
     } catch (error) {
       console.error('Error fetching sports odds data:', error);
-      return this.getFallbackGameData(playerName, sport);
+      return this.getFallbackGameData(playerName, sport, playerData);
     }
   }
 
