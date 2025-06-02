@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -25,7 +24,8 @@ const GameInfoCard = ({ player }: GameInfoCardProps) => {
       setLoading(true);
       try {
         const sport = player.playerData?.sport || 'NBA';
-        const data = await sportsOddsApi.getPlayerGameInfo(player.name, sport);
+        console.log(`Fetching game data for ${player.name} with team: ${player.playerData?.team || player.playerData?.teamAbbr}`);
+        const data = await sportsOddsApi.getPlayerGameInfo(player.name, sport, player.playerData);
         setGameData(data);
       } catch (error) {
         console.error('Error fetching game data:', error);
@@ -35,7 +35,7 @@ const GameInfoCard = ({ player }: GameInfoCardProps) => {
     };
 
     fetchGameData();
-  }, [player?.name]);
+  }, [player?.name, player?.playerData]);
 
   const formatDateTime = (dateString: string) => {
     const date = new Date(dateString);

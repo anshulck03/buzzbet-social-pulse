@@ -95,65 +95,144 @@ class SportsOddsApi {
     return sportMap[sport] || 'basketball_nba';
   }
 
-  private processPlayerGameData(playerName: string, upcomingGames: GameOdds[], scores: LiveScore[]): {
+  private getPlayerTeam(playerName: string, playerData?: any): string | null {
+    // First try to get team from player data
+    if (playerData?.team) {
+      return playerData.team;
+    }
+    
+    // If no player data, try to extract team from team abbreviation
+    if (playerData?.teamAbbr) {
+      const teamMap: Record<string, string> = {
+        // NBA teams
+        'LAL': 'Lakers', 'GSW': 'Warriors', 'BOS': 'Celtics', 'MIA': 'Heat',
+        'NYK': 'Knicks', 'CHI': 'Bulls', 'SA': 'Spurs', 'PHX': 'Suns',
+        // NHL teams  
+        'EDM': 'Oilers', 'TOR': 'Maple Leafs', 'VGK': 'Golden Knights',
+        'TB': 'Lightning', 'COL': 'Avalanche', 'CAR': 'Hurricanes',
+        // NFL teams
+        'KC': 'Chiefs', 'BUF': 'Bills', 'SF': '49ers', 'DAL': 'Cowboys',
+        // MLB teams
+        'LAD': 'Dodgers', 'NYY': 'Yankees', 'HOU': 'Astros', 'ATL': 'Braves'
+      };
+      return teamMap[playerData.teamAbbr] || null;
+    }
+    
+    return null;
+  }
+
+  private normalizeTeamName(teamName: string): string {
+    // Remove common prefixes and normalize team names for matching
+    return teamName
+      .replace(/^(Los Angeles|New York|San Francisco|Golden State|Tampa Bay)/, '')
+      .replace(/Lakers|Warriors|Knicks|Rangers|Giants|49ers|Lightning/g, (match) => match)
+      .trim()
+      .toLowerCase();
+  }
+
+  private isTeamMatch(gameTeam: string, playerTeam: string): boolean {
+    if (!playerTeam) return false;
+    
+    const normalizedGameTeam = this.normalizeTeamName(gameTeam);
+    const normalizedPlayerTeam = this.normalizeTeamName(playerTeam);
+    
+    // Direct match
+    if (normalizedGameTeam === normalizedPlayerTeam) return true;
+    
+    // Check if either team name contains the other
+    if (normalizedGameTeam.includes(normalizedPlayerTeam) || 
+        normalizedPlayerTeam.includes(normalizedGameTeam)) return true;
+    
+    // Special cases for common team name variations
+    const teamVariations: Record<string, string[]> = {
+      'lakers': ['lal', 'los angeles lakers'],
+      'warriors': ['gsw', 'golden state warriors'],
+      'oilers': ['edm', 'edmonton oilers'],
+      'maple leafs': ['tor', 'toronto maple leafs'],
+      'chiefs': ['kc', 'kansas city chiefs']
+    };
+    
+    for (const [key, variations] of Object.entries(teamVariations)) {
+      if ((key === normalizedPlayerTeam || variations.includes(normalizedPlayerTeam)) &&
+          (key === normalizedGameTeam || variations.includes(normalizedGameTeam))) {
+        return true;
+      }
+    }
+    
+    return false;
+  }
+
+  private processPlayerGameData(playerName: string, upcomingGames: GameOdds[], scores: LiveScore[], playerData?: any): {
     nextGame?: GameOdds;
     liveGame?: LiveScore;
     lastGame?: LiveScore;
     playerOdds?: any;
   } {
-    // For demo purposes, we'll simulate finding relevant games
-    // In a real implementation, you'd need to match the player to their team
+    const playerTeam = this.getPlayerTeam(playerName, playerData);
+    console.log(`Processing games for ${playerName}, team: ${playerTeam}`);
     
     const result: any = {};
     
-    // Find live game (game that's in progress)
-    const liveGame = scores.find(game => 
-      !game.completed && 
-      new Date(game.commence_time) <= new Date()
-    );
-    
-    if (liveGame) {
-      result.liveGame = liveGame;
-    }
-    
-    // Find next upcoming game
-    const nextGame = upcomingGames.find(game => 
-      new Date(game.commence_time) > new Date()
-    );
-    
-    if (nextGame) {
-      result.nextGame = nextGame;
-    }
-    
-    // Find last completed game
-    const lastGame = scores
-      .filter(game => game.completed)
-      .sort((a, b) => new Date(b.commence_time).getTime() - new Date(a.commence_time).getTime())[0];
-    
-    if (lastGame) {
-      result.lastGame = lastGame;
+    if (playerTeam) {
+      // Find live game for player's team
+      const liveGame = scores.find(game => 
+        !game.completed && 
+        new Date(game.commence_time) <= new Date() &&
+        (this.isTeamMatch(game.home_team, playerTeam) || this.isTeamMatch(game.away_team, playerTeam))
+      );
+      
+      if (liveGame) {
+        result.liveGame = liveGame;
+        console.log(`Found live game: ${liveGame.away_team} @ ${liveGame.home_team}`);
+      }
+      
+      // Find next upcoming game for player's team
+      const nextGame = upcomingGames.find(game => 
+        new Date(game.commence_time) > new Date() &&
+        (this.isTeamMatch(game.home_team, playerTeam) || this.isTeamMatch(game.away_team, playerTeam))
+      );
+      
+      if (nextGame) {
+        result.nextGame = nextGame;
+        console.log(`Found next game: ${nextGame.away_team} @ ${nextGame.home_team}`);
+      }
+      
+      // Find last completed game for player's team
+      const lastGame = scores
+        .filter(game => 
+          game.completed &&
+          (this.isTeamMatch(game.home_team, playerTeam) || this.isTeamMatch(game.away_team, playerTeam))
+        )
+        .sort((a, b) => new Date(b.commence_time).getTime() - new Date(a.commence_time).getTime())[0];
+      
+      if (lastGame) {
+        result.lastGame = lastGame;
+        console.log(`Found last game: ${lastGame.away_team} @ ${lastGame.home_team}`);
+      }
     }
     
     return result;
   }
 
-  private getFallbackGameData(playerName: string, sport: string) {
+  private getFallbackGameData(playerName: string, sport: string, playerData?: any) {
+    const playerTeam = this.getPlayerTeam(playerName, playerData) || 'Team';
+    
     return {
       nextGame: {
         id: 'demo-next',
         sport_key: sport.toLowerCase(),
         sport_title: sport,
-        commence_time: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-        home_team: 'Lakers',
-        away_team: 'Warriors',
+        commence_time: new Date(Date.now() + 86400000).toISOString(),
+        home_team: 'Opponent',
+        away_team: playerTeam,
         bookmakers: [{
           key: 'fanduel',
           title: 'FanDuel',
           markets: [{
             key: 'h2h',
             outcomes: [
-              { name: 'Lakers', price: -110 },
-              { name: 'Warriors', price: -110 }
+              { name: playerTeam, price: -110 },
+              { name: 'Opponent', price: -110 }
             ]
           }]
         }]
@@ -162,13 +241,13 @@ class SportsOddsApi {
         id: 'demo-last',
         sport_key: sport.toLowerCase(),
         sport_title: sport,
-        commence_time: new Date(Date.now() - 86400000).toISOString(), // Yesterday
+        commence_time: new Date(Date.now() - 86400000).toISOString(),
         completed: true,
-        home_team: 'Lakers',
-        away_team: 'Celtics',
+        home_team: 'Opponent',
+        away_team: playerTeam,
         scores: [
-          { name: 'Lakers', score: '108' },
-          { name: 'Celtics', score: '112' }
+          { name: playerTeam, score: '108' },
+          { name: 'Opponent', score: '112' }
         ],
         last_update: new Date().toISOString()
       }
