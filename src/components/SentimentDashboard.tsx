@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from 'react';
 import { TrendingUp, TrendingDown, AlertTriangle, Shield, Clock, Loader2, Hash, Brain, Target, Zap, Star, Trophy, Activity, Heart, Timer, Gamepad2, BarChart3, Newspaper, CheckCircle, AlertCircle, XCircle, HelpCircle } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -5,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { redditApi } from '@/services/redditApi';
 import { deepseekAnalyzer, DeepSeekSummaryAnalysis } from '@/services/deepseekAnalyzer';
+import GameInfoCard from '@/components/GameInfoCard';
 
 interface SentimentDashboardProps {
   player: { name: string; playerData?: any } | null;
@@ -271,6 +273,9 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
 
   return (
     <div className="space-y-6">
+      {/* Game Information - NEW SECTION */}
+      <GameInfoCard player={player} />
+
       {/* AI-Powered Sports Intelligence */}
       <Card className="bg-slate-800/50 border-slate-700">
         <CardHeader>
@@ -280,7 +285,7 @@ const SentimentDashboard = ({ player }: SentimentDashboardProps) => {
               <span className="text-white">Sports Intelligence Report</span>
             </div>
             <div className="flex items-center space-x-2">
-              {aiAnalysis.sport !== 'unknown' && (
+              {aiAnalysis?.sport !== 'unknown' && (
                 <Badge variant="outline" className={`${getSportColor(aiAnalysis.sport)} text-xs`}>
                   {aiAnalysis.sport}
                 </Badge>
