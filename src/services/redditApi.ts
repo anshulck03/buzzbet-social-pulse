@@ -1,4 +1,3 @@
-
 const REDDIT_CLIENT_ID = '-7EV03N1xVXY3vda_h_Dzw';
 const REDDIT_CLIENT_SECRET = 'jat9LYjzT_G52kMIpPcTIUdLIqBdhA';
 
@@ -26,6 +25,7 @@ interface RedditComment {
 
 import { ESPNPlayer } from '@/services/espnPlayerDatabase';
 import { subredditDiscovery } from '@/services/subredditDiscovery';
+import { redditConfig } from '@/services/redditConfiguration';
 
 class RedditApiService {
   private accessToken: string | null = null;
@@ -204,33 +204,42 @@ class RedditApiService {
         return cachedResult;
       }
 
-      console.log(`AI-powered subreddit discovery for: ${playerName}`);
+      const config = redditConfig.getConfiguration();
+      console.log(`Enhanced subreddit discovery for: ${playerName}`);
       
-      // Use intelligent subreddit discovery
+      // Use intelligent subreddit discovery with configuration
       const targetSubreddits = subredditDiscovery.discoverSubreddits(playerName, playerData);
+      const maxSubreddits = Math.min(targetSubreddits.length, config.maxSubredditsToSearch);
       
       if (playerData) {
-        console.log(`Analyzing ${playerData.sport} player across ${targetSubreddits.length} intelligent subreddits`);
+        console.log(`Analyzing ${playerData.sport} player across ${maxSubreddits} intelligent subreddits`);
       } else {
-        console.log(`Multi-sport analysis across ${targetSubreddits.length} subreddits`);
+        console.log(`Multi-sport analysis across ${maxSubreddits} subreddits`);
       }
       
       const allPosts: RedditPost[] = [];
       const searchedSubreddits: string[] = [];
       
-      // OPTIMIZATION: Search subreddits in parallel instead of sequentially
-      const subredditPromises = targetSubreddits.slice(0, 8).map(async (subreddit) => {
+      // Enhanced parallel search with better error handling
+      const subredditPromises = targetSubreddits.slice(0, maxSubreddits).map(async (subreddit) => {
         try {
-          const posts = await this.getSubredditPosts(subreddit, playerName, 4); // Reduced from 6 to 4
+          const postsPerSubreddit = Math.ceil(config.postsPerPage / maxSubreddits) + 2;
+          const posts = await this.getSubredditPosts(subreddit, playerName, postsPerSubreddit);
+          
           if (posts.length > 0) {
-            // Filter posts to only include those that actually mention the player
-            const relevantPosts = posts.filter(post => 
-              post.title.toLowerCase().includes(playerName.toLowerCase()) ||
-              (post.selftext && post.selftext.toLowerCase().includes(playerName.toLowerCase()))
-            );
+            // Enhanced filtering for player mentions
+            const relevantPosts = posts.filter(post => {
+              const content = (post.title + ' ' + (post.selftext || '')).toLowerCase();
+              const playerNameLower = playerName.toLowerCase();
+              const playerParts = playerNameLower.split(' ');
+              
+              // Check for full name or individual name parts
+              return content.includes(playerNameLower) || 
+                     playerParts.every(part => content.includes(part)) ||
+                     playerParts.some(part => part.length > 3 && content.includes(part));
+            });
             
             if (relevantPosts.length > 0) {
-              // Add subreddit info to posts for sport detection
               const postsWithSubreddit = relevantPosts.map(post => ({
                 ...post,
                 subreddit: subreddit
@@ -246,7 +255,7 @@ class RedditApiService {
         }
       });
 
-      // Wait for all subreddit searches to complete in parallel
+      // Wait for all subreddit searches with enhanced error handling
       const results = await Promise.allSettled(subredditPromises);
       
       results.forEach((result) => {
@@ -258,35 +267,50 @@ class RedditApiService {
         }
       });
       
-      // Sort by relevance using sport detection and subreddit priority
+      // Enhanced sorting with multiple criteria
       const sortedPosts = allPosts.sort((a, b) => {
         const aPriority = subredditDiscovery.getSubredditPriority(a.subreddit, playerData?.sport);
         const bPriority = subredditDiscovery.getSubredditPriority(b.subreddit, playerData?.sport);
         
         if (aPriority !== bPriority) {
-          return bPriority - aPriority; // Higher priority first
+          return bPriority - aPriority;
         }
         
-        return b.score - a.score; // Then by score
+        // Then by engagement score (score + comments)
+        const aEngagement = a.score + (a.num_comments * 0.5);
+        const bEngagement = b.score + (b.num_comments * 0.5);
+        
+        if (Math.abs(aEngagement - bEngagement) > 5) {
+          return bEngagement - aEngagement;
+        }
+        
+        // Finally by recency
+        return b.created_utc - a.created_utc;
       });
       
-      // Remove duplicates
+      // Remove duplicates and ensure adequate coverage
       const uniquePosts = sortedPosts.filter((post, index, self) => 
         index === self.findIndex(p => p.id === post.id)
       );
       
-      // OPTIMIZATION: Get comments from fewer posts and in parallel
+      // Enhanced comment fetching with better distribution
       const comments: RedditComment[] = [];
-      const topPosts = uniquePosts.slice(0, 3); // Reduced from 6 to 3
+      const topPostsForComments = uniquePosts.slice(0, Math.min(5, config.postsPerPage / 4));
       
-      if (topPosts.length > 0) {
-        const commentPromises = topPosts.map(async (post) => {
+      if (topPostsForComments.length > 0) {
+        const commentPromises = topPostsForComments.map(async (post) => {
           try {
-            const postComments = await this.getPostComments(post.id, 10); // Reduced from 20 to 10
-            // Filter comments to only include those mentioning the player
-            return postComments.filter(comment =>
-              comment.body.toLowerCase().includes(playerName.toLowerCase())
-            );
+            const commentsPerPost = Math.ceil(15 / topPostsForComments.length);
+            const postComments = await this.getPostComments(post.id, commentsPerPost);
+            
+            return postComments.filter(comment => {
+              const content = comment.body.toLowerCase();
+              const playerNameLower = playerName.toLowerCase();
+              const playerParts = playerNameLower.split(' ');
+              
+              return content.includes(playerNameLower) || 
+                     playerParts.some(part => part.length > 3 && content.includes(part));
+            });
           } catch (error) {
             console.warn(`Failed to get comments for post ${post.id}:`, error);
             return [];
@@ -301,21 +325,30 @@ class RedditApiService {
         });
       }
       
+      // Data adequacy check
+      if (uniquePosts.length < config.fallbackPostCount && playerData) {
+        console.log(`Limited data coverage for ${playerName}: ${uniquePosts.length} posts across ${searchedSubreddits.length} subreddits`);
+      }
+      
       const result = {
         posts: uniquePosts,
         comments: comments,
         searchedSubreddits: searchedSubreddits
       };
 
-      // Cache the result
-      this.setCachedData(cacheKey, result);
+      // Cache with configurable expiration
+      const cacheExpiration = config.cacheExpirationMinutes * 60 * 1000;
+      this.cache.set(cacheKey, {
+        data: result,
+        expiry: Date.now() + cacheExpiration
+      });
       
-      console.log(`AI Discovery Results: ${uniquePosts.length} posts, ${comments.length} comments across ${searchedSubreddits.length} subreddits`);
-      console.log(`Analyzed subreddits: ${searchedSubreddits.join(', ')}`);
+      console.log(`Enhanced Coverage Results: ${uniquePosts.length} posts, ${comments.length} comments across ${searchedSubreddits.length} subreddits`);
+      console.log(`Analyzed communities: ${searchedSubreddits.join(', ')}`);
       
       return result;
     } catch (error) {
-      console.error('Error in AI-powered Reddit search:', error);
+      console.error('Error in enhanced Reddit search:', error);
       throw error;
     }
   }
