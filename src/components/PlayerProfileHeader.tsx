@@ -24,15 +24,17 @@ const PlayerProfileHeader = ({ player, onRefreshAnalysis }: PlayerProfileHeaderP
 
   console.log('PlayerProfileHeader player:', player);
 
+  const playerDisplayName = player.displayName || player.name;
+
   useEffect(() => {
     loadPlayerImage();
     generateAISummary();
-  }, [player.id, player.displayName]);
+  }, [player.id, playerDisplayName]);
 
   const loadPlayerImage = async () => {
     setIsLoadingImage(true);
     try {
-      const imageUrl = await nbaImageService.getImageForPlayer(player.id, player.displayName);
+      const imageUrl = await nbaImageService.getImageForPlayer(player.id, playerDisplayName);
       setPlayerImage(imageUrl);
     } catch (error) {
       console.error('Failed to load player image:', error);
@@ -48,18 +50,18 @@ const PlayerProfileHeader = ({ player, onRefreshAnalysis }: PlayerProfileHeaderP
       // Create mock Reddit posts for AI analysis
       const mockPosts = [
         {
-          title: `${player.displayName} performance analysis`,
-          content: `Analyzing ${player.displayName} current form and statistics for ${player.team}`,
+          title: `${playerDisplayName} performance analysis`,
+          content: `Analyzing ${playerDisplayName} current form and statistics for ${player.team}`,
           subreddit: player.sport.toLowerCase()
         },
         {
-          title: `${player.displayName} season outlook`,
-          content: `Discussion about ${player.displayName} potential and team impact`,
+          title: `${playerDisplayName} season outlook`,
+          content: `Discussion about ${playerDisplayName} potential and team impact`,
           subreddit: 'sports'
         }
       ];
 
-      const summary = await deepseekAnalyzer.summarizePosts(mockPosts, player.displayName);
+      const summary = await deepseekAnalyzer.summarizePosts(mockPosts, playerDisplayName);
       setAiSummary(summary);
       setLastUpdated(new Date());
     } catch (error) {
@@ -111,7 +113,7 @@ const PlayerProfileHeader = ({ player, onRefreshAnalysis }: PlayerProfileHeaderP
                 ) : playerImage ? (
                   <img 
                     src={playerImage} 
-                    alt={player.displayName}
+                    alt={playerDisplayName}
                     className="w-full h-full object-cover"
                     onError={() => setPlayerImage('')}
                   />
@@ -129,7 +131,7 @@ const PlayerProfileHeader = ({ player, onRefreshAnalysis }: PlayerProfileHeaderP
                 <div>
                   <div className="flex items-center gap-3 mb-2">
                     <h2 className="text-2xl lg:text-3xl font-bold text-white">
-                      {player.displayName}
+                      {playerDisplayName}
                     </h2>
                     {player.jersey && (
                       <span className="text-lg text-slate-300">#{player.jersey}</span>

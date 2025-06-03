@@ -1,6 +1,7 @@
 export interface ESPNPlayer {
   id: string;
   name: string;
+  displayName?: string;
   firstName: string;
   lastName: string;
   team: string;
@@ -10,6 +11,19 @@ export interface ESPNPlayer {
   headshot: string;
   searchTerms: string[];
   matchScore?: number;
+  // Additional profile data
+  jersey?: string;
+  height?: string;
+  weight?: number;
+  age?: number;
+  experience?: number;
+  salary?: number;
+  stats?: {
+    points?: number;
+    assists?: number;
+    rebounds?: number;
+    [key: string]: any;
+  };
 }
 
 import { MANUAL_PLAYER_OVERRIDES, ManualPlayer } from '@/data/manualPlayerOverrides';
