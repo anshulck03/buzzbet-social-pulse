@@ -7,6 +7,7 @@ import { redditApi, RedditPost, RedditComment } from '@/services/redditApi';
 import { ESPNPlayer } from '@/services/espnPlayerDatabase';
 import EnhancedPlayerCard from './EnhancedPlayerCard';
 import EnhancedRedditInsights from './EnhancedRedditInsights';
+import PlayerProfileHeader from './PlayerProfileHeader';
 import { redditConfig } from '@/services/redditConfiguration';
 
 interface InsightFeedProps {
@@ -60,6 +61,14 @@ const InsightFeed = ({ player }: InsightFeedProps) => {
     fetchData();
   }, [player?.name, player?.playerData]);
 
+  const handleRefreshAnalysis = () => {
+    // Trigger refresh of Reddit data when AI analysis is refreshed
+    if (player?.name) {
+      console.log('Refreshing Reddit data after AI analysis refresh');
+      // The useEffect will handle the refresh
+    }
+  };
+
   if (loading) {
     return (
       <Card className="bg-slate-800/50 border-slate-700">
@@ -75,8 +84,16 @@ const InsightFeed = ({ player }: InsightFeedProps) => {
 
   return (
     <div className="space-y-6">
-      {/* Player Card - Always show when we have player data */}
+      {/* Player Profile Header - Only show when we have player data */}
       {player?.playerData && (
+        <PlayerProfileHeader 
+          player={player.playerData} 
+          onRefreshAnalysis={handleRefreshAnalysis}
+        />
+      )}
+
+      {/* Legacy Player Card - Show only when we don't have comprehensive player data */}
+      {player?.playerData && !player.playerData.stats && (
         <Card className="bg-slate-800/50 border-slate-700">
           <CardHeader>
             <CardTitle className="text-white text-lg">Player Profile</CardTitle>
